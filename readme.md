@@ -18,7 +18,7 @@ This repository contains:
 - [Background](#Background)
 - [Install](#Install)
 - [Usage](#Usage)
-	- [Find all LAN devices](#Find all LAN devices)
+	- [Find all LAN devices](#Find-all-LAN-devices)
 - [Maintainers](#Maintainers)
 - [Contributing](#Contributing)
 - [License](#License)
