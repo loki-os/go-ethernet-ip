@@ -18,7 +18,7 @@ This repository contains:
 - [Background](#Background)
 - [Install](#Install)
 - [Usage](#Usage)
-	- [Scan](#Scan)
+	- [Find all LAN devices](#Find all LAN devices)
 - [Maintainers](#Maintainers)
 - [Contributing](#Contributing)
 - [License](#License)
@@ -45,10 +45,31 @@ Also go modules is supported.
 
 I used some cip cases for demonstration.
 
-### Scan
+### Find all LAN devices
 
 ```go
+func ListAllLanDevices() {
+	udp, e := NewUDPWithAutoScan(nil)
+	if e != nil {
+		log.Println(e)
+		return
+	}
 
+	e1 := udp.Connect()
+	if e1 != nil {
+		log.Println(e1)
+		return
+	}
+	defer udp.Close()
+
+	udp.ListIdentity()
+
+	// you should sleep for result because udp use broadcast message
+	time.Sleep(time.Second)
+
+	b, _ := json.MarshalIndent(udp.Devices, "", "\t")
+	log.Println(string(b))
+}
 ```
 
 ## Maintainers

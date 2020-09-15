@@ -2,9 +2,7 @@ package go_ethernet_ip
 
 import (
 	"bytes"
-	"encoding/json"
 	"github.com/loki-os/go-ethernet-ip/typedef"
-	"log"
 )
 
 type ListIdentityItem struct {
@@ -80,20 +78,19 @@ func (e *EIPUDP) ListIdentity() {
 	b, _ := encapsulationPacket.Encode()
 
 	if e.udpConn != nil {
-		_ = e.send(b)
+		e.send(b)
 	}
 }
 
-func (e *EIPTCP) ListIdentityDecode(encapsulationPacket *EncapsulationPacket) {
+func (e *EIPTCP) ListIdentityDecode(encapsulationPacket *EncapsulationPacket) *ListIdentity {
 	if len(encapsulationPacket.CommandSpecificData) == 0 {
-		return
+		return nil
 	}
 
 	list := &ListIdentity{}
 	list.Decode(encapsulationPacket.CommandSpecificData)
 
-	b, _ := json.MarshalIndent(list, "", "\t")
-	log.Println(string(b))
+	return list
 }
 
 func (e *EIPUDP) ListIdentityDecode(encapsulationPacket *EncapsulationPacket) *ListIdentity {
