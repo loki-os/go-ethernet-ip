@@ -67,18 +67,24 @@ func NewListIdentity() *EncapsulationPacket {
 	return encapsulationPacket
 }
 
-func (e *EIP) ListIdentity() {
+func (e *EIPTCP) ListIdentity() {
 	encapsulationPacket := NewListIdentity()
 	b, _ := encapsulationPacket.Encode()
 	if e.tcpConn != nil {
 		e.sender <- b
 	}
+}
+
+func (e *EIPUDP) ListIdentity() {
+	encapsulationPacket := NewListIdentity()
+	b, _ := encapsulationPacket.Encode()
+
 	if e.udpConn != nil {
-		_ = e.udpSend(b)
+		_ = e.send(b)
 	}
 }
 
-func (e *EIP) ListIdentityDecode(encapsulationPacket *EncapsulationPacket) {
+func (e *EIPTCP) ListIdentityDecode(encapsulationPacket *EncapsulationPacket) {
 	if len(encapsulationPacket.CommandSpecificData) == 0 {
 		return
 	}
@@ -88,4 +94,15 @@ func (e *EIP) ListIdentityDecode(encapsulationPacket *EncapsulationPacket) {
 
 	b, _ := json.MarshalIndent(list, "", "\t")
 	log.Println(string(b))
+}
+
+func (e *EIPUDP) ListIdentityDecode(encapsulationPacket *EncapsulationPacket) *ListIdentity {
+	if len(encapsulationPacket.CommandSpecificData) == 0 {
+		return nil
+	}
+
+	list := &ListIdentity{}
+	list.Decode(encapsulationPacket.CommandSpecificData)
+
+	return list
 }

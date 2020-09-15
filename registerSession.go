@@ -6,8 +6,6 @@ import (
 	"log"
 )
 
-const CommandRegisterSession = typedef.Uint(0x65)
-
 type registerSessionSpecificData struct {
 	ProtocolVersion typedef.Uint
 	OptionsFlags    typedef.Uint
@@ -22,7 +20,7 @@ func (r *registerSessionSpecificData) Encode() []byte {
 
 func NewRegisterSession(context typedef.Ulint) *EncapsulationPacket {
 	encapsulationPacket := &EncapsulationPacket{}
-	encapsulationPacket.Command = CommandRegisterSession
+	encapsulationPacket.Command = EIPCommandRegisterSession
 	encapsulationPacket.Length = 4
 	encapsulationPacket.SenderContext = context
 
@@ -35,12 +33,12 @@ func NewRegisterSession(context typedef.Ulint) *EncapsulationPacket {
 	return encapsulationPacket
 }
 
-func (e *EIP) RegisterSession() {
+func (e *EIPTCP) RegisterSession() {
 	encapsulationPacket := NewRegisterSession(0)
 	b, _ := encapsulationPacket.Encode()
 	e.sender <- b
 }
 
-func (e *EIP) RegisterSessionDecode(encapsulationPacket *EncapsulationPacket) {
+func (e *EIPTCP) RegisterSessionDecode(encapsulationPacket *EncapsulationPacket) {
 	log.Printf("%+v\n", encapsulationPacket)
 }
