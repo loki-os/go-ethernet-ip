@@ -5,50 +5,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/loki-os/go-ethernet-ip/typedef"
 	"net"
 	"time"
 )
 
-type EncapsulationHeader struct {
-	Command       typedef.Uint
-	Length        typedef.Uint
-	SessionHandle typedef.Udint
-	Status        typedef.Udint
-	SenderContext typedef.Ulint
-	Options       typedef.Udint
-}
-
-type EncapsulationPacket struct {
-	EncapsulationHeader
-	CommandSpecificData []byte
-}
-
-func (e *EncapsulationPacket) Encode() ([]byte, error) {
-	//check exist
-	if e == nil {
-		return nil, errors.New("EIP not initialized")
-	}
-
-	//check length !> 65511
-	if e.Length > 65511 {
-		return nil, errors.New("CommandSpecificData over length")
-	}
-
-	buffer := new(bytes.Buffer)
-	e.Length = typedef.Uint(len(e.CommandSpecificData))
-	WriteByte(buffer, e.EncapsulationHeader)
-	WriteByte(buffer, e.CommandSpecificData)
-	return buffer.Bytes(), nil
-}
-
 type EIP struct {
-	config   *config
-	tcpAddr  *net.TCPAddr
-	tcpConn  *net.TCPConn
-	sender   chan []byte
-	ioCancel context.CancelFunc
-	buffer   []byte
+	config               *config
+	tcpAddr              *net.TCPAddr
+	udpAddr              *net.UDPAddr
+	tcpConn              *net.TCPConn
+	udpConn              *net.UDPConn
+	sender               chan []byte
+	ioCancel             context.CancelFunc
+	buffer               []byte
+	ListIdentityCallBack func()
 }
 
 func (e *EIP) TcpConnect() error {
@@ -68,17 +38,72 @@ func (e *EIP) TcpConnect() error {
 	return nil
 }
 
+func (e *EIP) UdpConnect() error {
+	if e.udpAddr == nil {
+		return errors.New("tcp EIP Object can't call udp function")
+	}
+
+	udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf(":%d", defaultConfig.UDPPort))
+	if err != nil {
+		return err
+	}
+
+	udpConn, err2 := net.ListenUDP("udp", udpAddr)
+	if err2 != nil {
+		return err2
+	}
+
+	e.udpConn = udpConn
+	go e.udpRead()
+	return nil
+}
+
+func (e *EIP) udpRead() {
+	for {
+		data := make([]byte, 1024*64)
+		read, remoteAddr, err := e.udpConn.ReadFromUDP(data)
+		if err != nil {
+			continue
+		}
+		fmt.Println(read, remoteAddr)
+		_, encapsulationPackets, err3 := e.slice(data[0:read])
+		if err3 != nil {
+			continue
+		}
+
+		e.encapsulationParser(encapsulationPackets[0])
+	}
+}
+
+func (e *EIP) udpSend(message []byte) error {
+	if e.udpAddr == nil {
+		return errors.New("tcp EIP Object can't call udp function")
+	}
+
+	conn, err1 := net.DialUDP("udp", nil, e.udpAddr)
+	if err1 != nil {
+		return err1
+	}
+
+	_, err2 := conn.Write(message)
+	if err2 != nil {
+		return err2
+	}
+
+	return nil
+}
+
 func (e *EIP) tcpConnected() {
 	if e.config.Connected != nil {
 		e.config.Connected()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	e.ioCancel = cancel
-	go e.write(ctx)
-	go e.read(ctx)
+	go e.tcpWrite(ctx)
+	go e.tcpRead(ctx)
 }
 
-func (e *EIP) disconnect(err error) {
+func (e *EIP) tcpDisconnect(err error) {
 	if e.config.Disconnected != nil {
 		e.config.Disconnected(err)
 	}
@@ -100,10 +125,10 @@ func (e *EIP) disconnect(err error) {
 	}
 }
 
-func (e *EIP) read(ctx context.Context) {
+func (e *EIP) tcpRead(ctx context.Context) {
 	defer func() {
 		if err := recover(); err != nil {
-			go e.disconnect(err.(error))
+			go e.tcpDisconnect(err.(error))
 		}
 	}()
 
@@ -137,14 +162,16 @@ func (e *EIP) read(ctx context.Context) {
 
 func (e *EIP) encapsulationParser(encapsulationPacket *EncapsulationPacket) {
 	switch encapsulationPacket.Command {
-	case 0x63:
-
+	case CommandListIdentity:
+		e.ListIdentityDecode(encapsulationPacket)
+	case CommandRegisterSession:
+		e.RegisterSessionDecode(encapsulationPacket)
 	default:
 		panic("encapsulation with wrong command")
 	}
 }
 
-func (e *EIP) write(ctx context.Context) {
+func (e *EIP) tcpWrite(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -183,9 +210,9 @@ func (e *EIP) slice(data []byte) (uint64, []*EncapsulationPacket, error) {
 				if e != nil {
 					panic(e)
 				}
-
-				result = append(result, _encapsulationPacket)
 			}
+
+			result = append(result, _encapsulationPacket)
 		}
 	}
 
@@ -193,7 +220,7 @@ func (e *EIP) slice(data []byte) (uint64, []*EncapsulationPacket, error) {
 	return uint64(count), result, nil
 }
 
-func New(addr string, config *config) (*EIP, error) {
+func NewTCP(addr string, config *config) (*EIP, error) {
 	eip := &EIP{}
 
 	if config == nil {
@@ -207,6 +234,28 @@ func New(addr string, config *config) (*EIP, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	eip.sender = make(chan []byte)
+
+	return eip, nil
+}
+
+func NewUDP(addr string, config *config) (*EIP, error) {
+	eip := &EIP{}
+
+	if config == nil {
+		eip.config = defaultConfig
+	} else {
+		eip.config = config
+	}
+
+	var err error
+	eip.udpAddr, err = net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", addr, defaultConfig.UDPPort))
+	if err != nil {
+		return nil, err
+	}
+
+	eip.sender = make(chan []byte)
 
 	return eip, nil
 }

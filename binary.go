@@ -18,3 +18,10 @@ func ReadByte(reader io.Reader, target interface{}) {
 		panic(e)
 	}
 }
+
+func ReadByteBigEndian(reader io.Reader, target interface{}) {
+	e := binary.Read(reader, binary.BigEndian, target)
+	if e != nil {
+		panic(e)
+	}
+}
