@@ -6,22 +6,13 @@ import (
 )
 
 func WriteByte(writer io.Writer, target interface{}) {
-	e := binary.Write(writer, binary.LittleEndian, target)
-	if e != nil {
-		panic(e)
-	}
+	binary.Write(writer, binary.LittleEndian, target)
 }
 
 func ReadByte(reader io.Reader, target interface{}) {
-	e := binary.Read(reader, binary.LittleEndian, target)
-	if e != nil {
-		panic(e)
-	}
+	binary.Read(reader, binary.LittleEndian, target)
 }
 
 func ReadByteBigEndian(reader io.Reader, target interface{}) {
-	e := binary.Read(reader, binary.BigEndian, target)
-	if e != nil {
-		panic(e)
-	}
+	binary.Read(reader, binary.BigEndian, target)
 }

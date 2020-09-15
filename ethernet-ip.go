@@ -12,8 +12,8 @@ import (
 type EIP struct {
 	config               *config
 	tcpAddr              *net.TCPAddr
-	udpAddr              *net.UDPAddr
 	tcpConn              *net.TCPConn
+	udpAddr              *net.UDPAddr
 	udpConn              *net.UDPConn
 	sender               chan []byte
 	ioCancel             context.CancelFunc
@@ -162,9 +162,9 @@ func (e *EIP) tcpRead(ctx context.Context) {
 
 func (e *EIP) encapsulationParser(encapsulationPacket *EncapsulationPacket) {
 	switch encapsulationPacket.Command {
-	case CommandListIdentity:
+	case EIPCommandListIdentity:
 		e.ListIdentityDecode(encapsulationPacket)
-	case CommandRegisterSession:
+	case EIPCommandRegisterSession:
 		e.RegisterSessionDecode(encapsulationPacket)
 	default:
 		panic("encapsulation with wrong command")
@@ -250,7 +250,7 @@ func NewUDP(addr string, config *config) (*EIP, error) {
 	}
 
 	var err error
-	eip.udpAddr, err = net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", addr, defaultConfig.UDPPort))
+	eip.udpAddr, err = net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", eip.config.BroadcastAddress, eip.config.UDPPort))
 	if err != nil {
 		return nil, err
 	}

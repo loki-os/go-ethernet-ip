@@ -7,8 +7,6 @@ import (
 	"log"
 )
 
-const CommandListIdentity = typedef.Uint(0x63)
-
 type ListIdentityItem struct {
 	ItemTypeCode                 typedef.Uint
 	ItemLength                   typedef.Uint
@@ -65,7 +63,7 @@ func (l *ListIdentity) Decode(data []byte) {
 
 func NewListIdentity() *EncapsulationPacket {
 	encapsulationPacket := &EncapsulationPacket{}
-	encapsulationPacket.Command = CommandListIdentity
+	encapsulationPacket.Command = EIPCommandListIdentity
 	return encapsulationPacket
 }
 
