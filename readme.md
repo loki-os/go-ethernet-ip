@@ -43,9 +43,11 @@ Also go modules is supported.
 
 ## Usage
 
-I used some cip cases for demonstration.
+I use some cip cases for demonstration.
 
 ### Find all LAN devices
+
+Before we start to communication with other device, we need to find them via lan. If you have clear ip skip this step.
 
 ```go
 func ListAllLanDevices() {
