@@ -46,6 +46,17 @@ Also go modules is supported.
 
 I use some cip cases for demonstration.
 
+Before you use this case.You should block your main thread.
+
+```go
+func block(){
+	some_case()
+	    
+	// you'd better find other way to do this. Sleep is not recommended.
+	time.Sleep(time.Second * 10)
+}
+``` 
+
 ### Find all LAN devices
 
 Before we start to communication with other device, we need to find them via lan. If you have clear ip skip this step.
