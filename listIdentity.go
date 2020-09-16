@@ -59,14 +59,18 @@ func (l *ListIdentity) Decode(data []byte) {
 	}
 }
 
-func NewListIdentity() *EncapsulationPacket {
+func NewListIdentity(context typedef.Ulint) *EncapsulationPacket {
 	encapsulationPacket := &EncapsulationPacket{}
 	encapsulationPacket.Command = EIPCommandListIdentity
+	encapsulationPacket.SenderContext = context
 	return encapsulationPacket
 }
 
-func (e *EIPTCP) ListIdentity() {
-	encapsulationPacket := NewListIdentity()
+func (e *EIPTCP) ListIdentity(cb func(interface{}, error)) {
+	ctx := CtxGenerator()
+	e.router[ctx] = cb
+
+	encapsulationPacket := NewListIdentity(ctx)
 	b, _ := encapsulationPacket.Encode()
 	if e.tcpConn != nil {
 		e.sender <- b
@@ -74,7 +78,7 @@ func (e *EIPTCP) ListIdentity() {
 }
 
 func (e *EIPUDP) ListIdentity() {
-	encapsulationPacket := NewListIdentity()
+	encapsulationPacket := NewListIdentity(0)
 	b, _ := encapsulationPacket.Encode()
 
 	if e.udpConn != nil {

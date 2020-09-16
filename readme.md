@@ -19,6 +19,7 @@ This repository contains:
 - [Install](#Install)
 - [Usage](#Usage)
 	- [Find all LAN devices](#Find-all-LAN-devices)
+	- [List Identity](#List-Identity)
 - [Maintainers](#Maintainers)
 - [Contributing](#Contributing)
 - [License](#License)
@@ -67,6 +68,54 @@ func ListAllLanDevices() {
 	udp.ListIdentity()
 
 	// you should sleep for result because udp use broadcast message
+	time.Sleep(time.Second)
+
+	b, _ := json.MarshalIndent(udp.Devices, "", "\t")
+	log.Println(string(b))
+}
+```
+
+### List Identity
+
+```go
+func ListIdentity() {
+	// tcp
+	tcp, e := NewTcpWithAddress("192.168.0.100", nil)
+	if e != nil {
+		log.Println(e)
+		return
+	}
+
+	e1 := tcp.Connect()
+	if e1 != nil {
+		log.Println(e1)
+		return
+	}
+
+	tcp.ListIdentity(func(data interface{}, err error) {
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		b, _ := json.MarshalIndent(data, "", "\t")
+		log.Println(string(b))
+	})
+
+	// udp
+	udp, e2 := NewUDPWithAddress("192.168.0.100", nil)
+	if e2 != nil {
+		log.Println(e)
+		return
+	}
+
+	e3 := udp.Connect()
+	if e3 != nil {
+		log.Println(e1)
+		return
+	}
+
+	udp.ListIdentity()
 	time.Sleep(time.Second)
 
 	b, _ := json.MarshalIndent(udp.Devices, "", "\t")

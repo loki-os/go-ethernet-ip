@@ -22,6 +22,7 @@ const (
 )
 
 var EIPCommandMap map[EIPCommand]bool
+var EIPError map[typedef.Udint]string
 
 func init() {
 	EIPCommandMap = make(map[EIPCommand]bool)
@@ -33,6 +34,15 @@ func init() {
 	EIPCommandMap[EIPCommandUnRegisterSession] = true
 	EIPCommandMap[EIPCommandSendRRData] = true
 	EIPCommandMap[EIPCommandSendUnitData] = true
+
+	EIPError = make(map[typedef.Udint]string)
+	EIPError[0x0000] = "success"
+	EIPError[0x0001] = "the sender issued an invalid or unsupported encapsulation command."
+	EIPError[0x0002] = "insufficient memory resources in the receiver to handle the command. This is not an application error. Instead, it only results if the encapsulation layer cannot obtain memory resources that it needs."
+	EIPError[0x0064] = "poorly formed or incorrect data in the data portion of the encapsulation message."
+	EIPError[0x0003] = "an originator used an invalid session handle when sending an encapsulation message to the target."
+	EIPError[0x0065] = "the target received a message of invalid length."
+	EIPError[0x0069] = "unsupported encapsulation protocol revision."
 }
 
 func checkCommand(cmd EIPCommand) bool {

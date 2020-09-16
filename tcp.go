@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/loki-os/go-ethernet-ip/typedef"
 	"net"
 	"time"
 )
@@ -16,6 +17,7 @@ type EIPTCP struct {
 	sender   chan []byte
 	ioCancel context.CancelFunc
 	buffer   []byte
+	router   map[typedef.Ulint]func(interface{}, error)
 
 	Connected    func()
 	Disconnected func(error)
@@ -37,6 +39,12 @@ func (e *EIPTCP) Connect() error {
 
 	e.connected()
 	return nil
+}
+
+func (e *EIPTCP) Close() {
+	e.ioCancel()
+	e.tcpConn.Close()
+	e.tcpConn = nil
 }
 
 func (e *EIPTCP) connected() {
@@ -96,11 +104,25 @@ func (e *EIPTCP) read(ctx context.Context) {
 }
 
 func (e *EIPTCP) encapsulationParser(encapsulationPacket *EncapsulationPacket) {
+	route, ok := e.router[encapsulationPacket.SenderContext]
+	if !ok {
+		return
+	}
+
+	if encapsulationPacket.Status != 0 {
+		if e, ok2 := EIPError[encapsulationPacket.Status]; ok2 {
+			route(nil, errors.New(e))
+		}
+	}
+
 	switch encapsulationPacket.Command {
 	case EIPCommandListIdentity:
-		e.ListIdentityDecode(encapsulationPacket)
+		result := e.ListIdentityDecode(encapsulationPacket)
+		route(result, nil)
 	default:
 	}
+
+	delete(e.router, encapsulationPacket.SenderContext)
 }
 
 func (e *EIPTCP) slice(data []byte) (uint64, []*EncapsulationPacket, error) {
@@ -179,6 +201,7 @@ func NewTcpWithAddress(addr string, config *config) (*EIPTCP, error) {
 	}
 
 	eip.sender = make(chan []byte)
+	eip.router = make(map[typedef.Ulint]func(interface{}, error))
 
 	return eip, nil
 }
