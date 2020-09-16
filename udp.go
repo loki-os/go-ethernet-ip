@@ -8,10 +8,12 @@ import (
 )
 
 type EIPUDP struct {
-	config  *config
-	udpAddr []*net.UDPAddr
-	udpConn *net.UDPConn
-	Devices map[string]*Device
+	config          *config
+	udpAddr         []*net.UDPAddr
+	udpConn         *net.UDPConn
+	Devices         map[string]*Device
+	InterfaceHandle func(string, *ListInterface)
+	ServicesHandle  func(string, *ListServices)
 }
 
 func (e *EIPUDP) Connect() error {
@@ -73,6 +75,16 @@ func (e *EIPUDP) encapsulationParser(encapsulationPacket *EncapsulationPacket, a
 			}
 
 			e.Devices[addr.IP.String()] = device
+		}
+	case EIPCommandListInterfaces:
+		_l := e.ListInterfaceDecode(encapsulationPacket)
+		if e.InterfaceHandle != nil {
+			e.InterfaceHandle(addr.IP.String(), _l)
+		}
+	case EIPCommandListServices:
+		_l := e.ListServicesDecode(encapsulationPacket)
+		if e.ServicesHandle != nil {
+			e.ServicesHandle(addr.IP.String(), _l)
 		}
 	default:
 	}

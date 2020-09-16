@@ -3,7 +3,6 @@ package go_ethernet_ip
 import (
 	"bytes"
 	"github.com/loki-os/go-ethernet-ip/typedef"
-	"log"
 )
 
 type registerSessionSpecificData struct {
@@ -34,11 +33,17 @@ func NewRegisterSession(context typedef.Ulint) *EncapsulationPacket {
 }
 
 func (e *EIPTCP) RegisterSession() {
-	encapsulationPacket := NewRegisterSession(0)
+	ctx := CtxGenerator()
+	e.router[ctx] = func(interface{}, error) {}
+
+	encapsulationPacket := NewRegisterSession(ctx)
 	b, _ := encapsulationPacket.Encode()
 	e.sender <- b
 }
 
 func (e *EIPTCP) RegisterSessionDecode(encapsulationPacket *EncapsulationPacket) {
-	log.Printf("%+v\n", encapsulationPacket)
+	e.session = encapsulationPacket.SessionHandle
+	if e.Connected != nil {
+		e.Connected()
+	}
 }

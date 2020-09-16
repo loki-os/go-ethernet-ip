@@ -18,6 +18,7 @@ type EIPTCP struct {
 	ioCancel context.CancelFunc
 	buffer   []byte
 	router   map[typedef.Ulint]func(interface{}, error)
+	session  typedef.Udint
 
 	Connected    func()
 	Disconnected func(error)
@@ -48,13 +49,12 @@ func (e *EIPTCP) Close() {
 }
 
 func (e *EIPTCP) connected() {
-	if e.Connected != nil {
-		e.Connected()
-	}
 	ctx, cancel := context.WithCancel(context.Background())
 	e.ioCancel = cancel
 	go e.write(ctx)
 	go e.read(ctx)
+
+	e.RegisterSession()
 }
 
 func (e *EIPTCP) write(ctx context.Context) {
@@ -119,7 +119,18 @@ func (e *EIPTCP) encapsulationParser(encapsulationPacket *EncapsulationPacket) {
 	case EIPCommandListIdentity:
 		result := e.ListIdentityDecode(encapsulationPacket)
 		route(result, nil)
+	case EIPCommandListInterfaces:
+		result := e.ListInterfaceDecode(encapsulationPacket)
+		route(result, nil)
+	case EIPCommandListServices:
+		result := e.ListServicesDecode(encapsulationPacket)
+		route(result, nil)
+	case EIPCommandRegisterSession:
+		e.RegisterSessionDecode(encapsulationPacket)
+	case EIPCommandUnRegisterSession:
+		e.UnRegisterSessionDecode(encapsulationPacket)
 	default:
+		route(nil, errors.New("unsupported command"))
 	}
 
 	delete(e.router, encapsulationPacket.SenderContext)

@@ -10,8 +10,9 @@ This repository contains:
 
 1. A implementation of ethernet/ip protocol.
 2. A lightweight message router.
-3. A lightweight api interface makes you don't need to focus binary steam.
-4. Examples of go-ethernet-ip.
+3. Session management.
+4. A lightweight api interface makes you don't need to focus binary steam.
+5. Examples of go-ethernet-ip.
 
 ## Table of Contents
 
@@ -20,6 +21,7 @@ This repository contains:
 - [Usage](#Usage)
 	- [Find all LAN devices](#Find-all-LAN-devices)
 	- [List Identity](#List-Identity)
+	- [List Interface](#List-Interface)
 - [Maintainers](#Maintainers)
 - [Contributing](#Contributing)
 - [License](#License)
@@ -131,6 +133,69 @@ func ListIdentity() {
 
 	b, _ := json.MarshalIndent(udp.Devices, "", "\t")
 	log.Println(string(b))
+}
+```
+
+### List Interface
+
+```go
+func ListInterface() {
+	// tcp
+	tcp, e := NewTcpWithAddress("10.211.55.7", nil)
+	if e != nil {
+		log.Println(e)
+		return
+	}
+
+	e1 := tcp.Connect()
+	if e1 != nil {
+		log.Println(e1)
+		return
+	}
+
+	tcp.ListInterface(func(data interface{}, err error) {
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		log.Printf("%+v\n", data)
+	})
+	
+	// udp
+	// we supported use udp to list interface but not recommended.
+}
+```
+
+### List services
+
+```go
+func ListServices() {
+	// tcp
+	tcp, e := NewTcpWithAddress("10.211.55.7", nil)
+	if e != nil {
+		log.Println(e)
+		return
+	}
+
+	e1 := tcp.Connect()
+	if e1 != nil {
+		log.Println(e1)
+		return
+	}
+
+	tcp.ListServices(func(data interface{}, err error) {
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		b, _ := json.MarshalIndent(data, "", "\t")
+		log.Println(string(b), string(data.(*ListServices).Items[0].Name))
+	})
+
+	// udp
+	// we supported use udp to list interface but not recommended.
 }
 ```
 
