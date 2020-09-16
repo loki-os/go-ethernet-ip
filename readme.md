@@ -22,6 +22,7 @@ This repository contains:
 	- [Find all LAN devices](#Find-all-LAN-devices)
 	- [List Identity](#List-Identity)
 	- [List Interface](#List-Interface)
+	- [List services](#List-services)
 - [Maintainers](#Maintainers)
 - [Contributing](#Contributing)
 - [License](#License)
@@ -195,7 +196,7 @@ func ListServices() {
 	})
 
 	// udp
-	// we supported use udp to list interface but not recommended.
+	// we supported use udp to list services but not recommended.
 }
 ```
 
