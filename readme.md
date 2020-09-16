@@ -46,7 +46,7 @@ Also go modules is supported.
 
 I use some cip cases for demonstration.
 
-Before you use this case.You should block your main thread.
+Before you use these cases.You should block your main thread.
 
 ```go
 func block(){
