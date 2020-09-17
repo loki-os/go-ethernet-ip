@@ -129,6 +129,12 @@ func (e *EIPTCP) encapsulationParser(encapsulationPacket *EncapsulationPacket) {
 		e.RegisterSessionDecode(encapsulationPacket)
 	case EIPCommandUnRegisterSession:
 		e.UnRegisterSessionDecode(encapsulationPacket)
+	case EIPCommandSendRRData:
+		result := e.SendRRDataDecode(encapsulationPacket)
+		route(result, nil)
+	case EIPCommandSendUnitData:
+		result := e.SendUnitDataDecode(encapsulationPacket)
+		route(result, nil)
 	default:
 		route(nil, errors.New("unsupported command"))
 	}
