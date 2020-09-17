@@ -2,7 +2,9 @@ package go_ethernet_ip
 
 import (
 	"bytes"
+	"errors"
 	"github.com/loki-os/go-ethernet-ip/typedef"
+	"time"
 )
 
 type registerSessionSpecificData struct {
@@ -32,13 +34,23 @@ func NewRegisterSession(context typedef.Ulint) *EncapsulationPacket {
 	return encapsulationPacket
 }
 
-func (e *EIPTCP) RegisterSession() {
+func (e *EIPTCP) RegisterSession() error {
 	ctx := CtxGenerator()
-	e.router[ctx] = func(interface{}, error) {}
+	e.receiver[ctx] = make(chan *EncapsulationPacket)
 
 	encapsulationPacket := NewRegisterSession(ctx)
 	b, _ := encapsulationPacket.Encode()
 	e.sender <- b
+
+	for {
+		select {
+		case <-time.After(e.config.TCPTimeout):
+			return errors.New("tcp timeout")
+		case received := <-e.receiver[ctx]:
+			e.RegisterSessionDecode(received)
+			return nil
+		}
+	}
 }
 
 func (e *EIPTCP) RegisterSessionDecode(encapsulationPacket *EncapsulationPacket) {

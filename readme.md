@@ -20,9 +20,14 @@ This repository contains:
 - [Install](#Install)
 - [Usage](#Usage)
 	- [Find all LAN devices](#Find-all-LAN-devices)
-	- [List Identity](#List-Identity)
-	- [List Interface](#List-Interface)
+	- [Device connection config](#Device-connection-config)
+	- [New device](#New-device)
+	- [List identity](#List-identity)
+	- [List interface](#List-interface)
 	- [List services](#List-services)
+	- [Send RRData](#List-services)
+	- [Send UnitData](#List-services)
+	- [Disconnect](#Disconnect)
 - [Maintainers](#Maintainers)
 - [Contributing](#Contributing)
 - [License](#License)
@@ -65,139 +70,61 @@ func block(){
 Before we start to communication with other device, we need to find them via lan. If you have clear ip skip this step.
 
 ```go
-func ListAllLanDevices() {
-	udp, e := NewUDPWithAutoScan(nil)
-	if e != nil {
-		log.Println(e)
-		return
-	}
-
-	e1 := udp.Connect()
-	if e1 != nil {
-		log.Println(e1)
-		return
-	}
-	defer udp.Close()
-
-	udp.ListIdentity()
-
-	// you should sleep for result because udp use broadcast message
-	time.Sleep(time.Second)
-
-	b, _ := json.MarshalIndent(udp.Devices, "", "\t")
-	log.Println(string(b))
-}
+devices, err := GetLanDevices(time.Second)
 ```
 
-### List Identity
+### New device
 
 ```go
-func ListIdentity() {
-	// tcp
-	tcp, e := NewTcpWithAddress("192.168.0.100", nil)
-	if e != nil {
-		log.Println(e)
-		return
-	}
-
-	e1 := tcp.Connect()
-	if e1 != nil {
-		log.Println(e1)
-		return
-	}
-
-	tcp.ListIdentity(func(data interface{}, err error) {
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		b, _ := json.MarshalIndent(data, "", "\t")
-		log.Println(string(b))
-	})
-
-	// udp
-	udp, e2 := NewUDPWithAddress("192.168.0.100", nil)
-	if e2 != nil {
-		log.Println(e)
-		return
-	}
-
-	e3 := udp.Connect()
-	if e3 != nil {
-		log.Println(e1)
-		return
-	}
-
-	udp.ListIdentity()
-	time.Sleep(time.Second)
-
-	b, _ := json.MarshalIndent(udp.Devices, "", "\t")
-	log.Println(string(b))
-}
+device, err := NewDevice("192.168.0.100")
 ```
 
-### List Interface
+### Device connection config
+
+Device Connect() is optional.You can skip this step to use default config.
+
+Connect() should be call before other function, otherwise it will fail.
 
 ```go
-func ListInterface() {
-	// tcp
-	tcp, e := NewTcpWithAddress("10.211.55.7", nil)
-	if e != nil {
-		log.Println(e)
-		return
-	}
+cfg := DefaultConfig()
+cfg.TCPTimeout = time.Second * 5
+device.Connect(cfg)
+```
 
-	e1 := tcp.Connect()
-	if e1 != nil {
-		log.Println(e1)
-		return
-	}
+### List identity
 
-	tcp.ListInterface(func(data interface{}, err error) {
-		if err != nil {
-			log.Println(err)
-			return
-		}
+```go
+identity, err := device.ListIdentity()
+```
 
-		log.Printf("%+v\n", data)
-	})
-	
-	// udp
-	// we supported use udp to list interface but not recommended.
-}
+### List interface
+
+```go
+interface, err := device.ListInterface()
 ```
 
 ### List services
 
 ```go
-func ListServices() {
-	// tcp
-	tcp, e := NewTcpWithAddress("10.211.55.7", nil)
-	if e != nil {
-		log.Println(e)
-		return
-	}
+services, err := device.ListServices()
+```
 
-	e1 := tcp.Connect()
-	if e1 != nil {
-		log.Println(e1)
-		return
-	}
+### Send RRData
 
-	tcp.ListServices(func(data interface{}, err error) {
-		if err != nil {
-			log.Println(err)
-			return
-		}
+```go
+device.SendRRData(cpf *commonPacketFormat, timeout typedef.Uint)
+```
 
-		b, _ := json.MarshalIndent(data, "", "\t")
-		log.Println(string(b), string(data.(*ListServices).Items[0].Name))
-	})
+### Send UnitData
 
-	// udp
-	// we supported use udp to list services but not recommended.
-}
+```go
+device.SendUnitData(cpf *commonPacketFormat, timeout typedef.Uint)
+```
+
+### Disconnect
+
+```go
+device.Disconnect()
 ```
 
 ## Maintainers

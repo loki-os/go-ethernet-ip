@@ -11,13 +11,14 @@ import (
 )
 
 type EIPTCP struct {
-	config   *config
+	config   *Config
 	tcpAddr  *net.TCPAddr
 	tcpConn  *net.TCPConn
 	sender   chan []byte
+	receiver map[typedef.Ulint]chan *EncapsulationPacket
+
 	ioCancel context.CancelFunc
 	buffer   []byte
-	router   map[typedef.Ulint]func(interface{}, error)
 	session  typedef.Udint
 
 	Connected    func()
@@ -38,8 +39,7 @@ func (e *EIPTCP) Connect() error {
 		return err
 	}
 
-	e.connected()
-	return nil
+	return e.connected()
 }
 
 func (e *EIPTCP) Close() {
@@ -48,13 +48,17 @@ func (e *EIPTCP) Close() {
 	e.tcpConn = nil
 }
 
-func (e *EIPTCP) connected() {
+func (e *EIPTCP) connected() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	e.ioCancel = cancel
 	go e.write(ctx)
 	go e.read(ctx)
 
-	e.RegisterSession()
+	if e.config.AutoSession {
+		return e.RegisterSession()
+	}
+
+	return nil
 }
 
 func (e *EIPTCP) write(ctx context.Context) {
@@ -69,12 +73,6 @@ func (e *EIPTCP) write(ctx context.Context) {
 }
 
 func (e *EIPTCP) read(ctx context.Context) {
-	defer func() {
-		if err := recover(); err != nil {
-			go e.disconnect(err.(error))
-		}
-	}()
-
 	buf := make([]byte, 1024*64)
 	var err error
 	for {
@@ -85,7 +83,7 @@ func (e *EIPTCP) read(ctx context.Context) {
 			var length int
 			length, err = e.tcpConn.Read(buf)
 			if err != nil {
-				panic(err)
+				e.disconnect(err)
 			}
 
 			e.buffer = append(e.buffer, buf[0:length]...)
@@ -97,49 +95,15 @@ func (e *EIPTCP) read(ctx context.Context) {
 			e.buffer = e.buffer[read:]
 
 			for _, encapsulationPacket := range encapsulationPackets {
-				e.encapsulationParser(encapsulationPacket)
+				channel, ok := e.receiver[encapsulationPacket.SenderContext]
+				if ok {
+					channel <- encapsulationPacket
+					close(channel)
+					delete(e.receiver, encapsulationPacket.SenderContext)
+				}
 			}
 		}
 	}
-}
-
-func (e *EIPTCP) encapsulationParser(encapsulationPacket *EncapsulationPacket) {
-	route, ok := e.router[encapsulationPacket.SenderContext]
-	if !ok {
-		return
-	}
-
-	if encapsulationPacket.Status != 0 {
-		if e, ok2 := EIPError[encapsulationPacket.Status]; ok2 {
-			route(nil, errors.New(e))
-		}
-	}
-
-	switch encapsulationPacket.Command {
-	case EIPCommandListIdentity:
-		result := e.ListIdentityDecode(encapsulationPacket)
-		route(result, nil)
-	case EIPCommandListInterfaces:
-		result := e.ListInterfaceDecode(encapsulationPacket)
-		route(result, nil)
-	case EIPCommandListServices:
-		result := e.ListServicesDecode(encapsulationPacket)
-		route(result, nil)
-	case EIPCommandRegisterSession:
-		e.RegisterSessionDecode(encapsulationPacket)
-	case EIPCommandUnRegisterSession:
-		e.UnRegisterSessionDecode(encapsulationPacket)
-	case EIPCommandSendRRData:
-		result := e.SendRRDataDecode(encapsulationPacket)
-		route(result, nil)
-	case EIPCommandSendUnitData:
-		result := e.SendUnitDataDecode(encapsulationPacket)
-		route(result, nil)
-	default:
-		route(nil, errors.New("unsupported command"))
-	}
-
-	delete(e.router, encapsulationPacket.SenderContext)
 }
 
 func (e *EIPTCP) slice(data []byte) (uint64, []*EncapsulationPacket, error) {
@@ -202,23 +166,21 @@ func (e *EIPTCP) disconnect(err error) {
 	}
 }
 
-func NewTcpWithAddress(addr string, config *config) (*EIPTCP, error) {
-	eip := &EIPTCP{}
-
+func NewTcpWithAddress(addr string, config *Config) (*EIPTCP, error) {
 	if config == nil {
-		eip.config = defaultConfig
-	} else {
-		eip.config = config
+		config = DefaultConfig()
 	}
 
-	var err error
-	eip.tcpAddr, err = net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", addr, eip.config.TCPPort))
+	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", addr, config.TCPPort))
 	if err != nil {
 		return nil, err
 	}
 
+	eip := &EIPTCP{}
+	eip.config = config
+	eip.tcpAddr = tcpAddr
 	eip.sender = make(chan []byte)
-	eip.router = make(map[typedef.Ulint]func(interface{}, error))
+	eip.receiver = make(map[typedef.Ulint]chan *EncapsulationPacket)
 
 	return eip, nil
 }

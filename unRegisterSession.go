@@ -16,8 +16,6 @@ func NewUnRegisterSession(session typedef.Udint, context typedef.Ulint) *Encapsu
 
 func (e *EIPTCP) UnRegisterSession() {
 	ctx := CtxGenerator()
-	e.router[ctx] = func(interface{}, error) {}
-
 	encapsulationPacket := NewUnRegisterSession(e.session, ctx)
 	b, _ := encapsulationPacket.Encode()
 	e.sender <- b

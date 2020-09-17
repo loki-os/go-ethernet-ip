@@ -2,7 +2,9 @@ package go_ethernet_ip
 
 import (
 	"bytes"
+	"errors"
 	"github.com/loki-os/go-ethernet-ip/typedef"
+	"time"
 )
 
 type ListIdentityItem struct {
@@ -66,14 +68,24 @@ func NewListIdentity(context typedef.Ulint) *EncapsulationPacket {
 	return encapsulationPacket
 }
 
-func (e *EIPTCP) ListIdentity(cb func(interface{}, error)) {
+func (e *EIPTCP) ListIdentity() (*ListIdentity, error) {
 	ctx := CtxGenerator()
-	e.router[ctx] = cb
+	e.receiver[ctx] = make(chan *EncapsulationPacket)
 
 	encapsulationPacket := NewListIdentity(ctx)
 	b, _ := encapsulationPacket.Encode()
+
 	if e.tcpConn != nil {
 		e.sender <- b
+	}
+
+	for {
+		select {
+		case <-time.After(e.config.TCPTimeout):
+			return nil, errors.New("tcp timeout")
+		case received := <-e.receiver[ctx]:
+			return e.ListIdentityDecode(received), nil
+		}
 	}
 }
 

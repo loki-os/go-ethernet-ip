@@ -8,9 +8,10 @@ import (
 )
 
 type EIPUDP struct {
-	config          *config
-	udpAddr         []*net.UDPAddr
-	udpConn         *net.UDPConn
+	config  *Config
+	udpAddr map[*net.UDPAddr]bool
+	udpConn *net.UDPConn
+
 	Devices         map[string]*Device
 	InterfaceHandle func(string, *ListInterface)
 	ServicesHandle  func(string, *ListServices)
@@ -21,7 +22,7 @@ func (e *EIPUDP) Connect() error {
 		return errors.New("tcp EIP Object can't call udp function")
 	}
 
-	udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf(":%d", defaultConfig.UDPPort))
+	udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf(":%d", DefaultConfig().UDPPort))
 	if err != nil {
 		return err
 	}
@@ -116,61 +117,56 @@ func (e *EIPUDP) decode(data []byte) (*EncapsulationPacket, error) {
 }
 
 func (e *EIPUDP) send(message []byte) {
-	for _, _addr := range e.udpAddr {
-		e.udpConn.WriteTo(message, _addr)
+	for udpAddr, _ := range e.udpAddr {
+		e.udpConn.WriteTo(message, udpAddr)
 	}
 }
 
-func NewUDPWithAddress(addr string, config *config) (*EIPUDP, error) {
-	eip := &EIPUDP{}
-
+func NewUDPWithAddress(address string, config *Config) (*EIPUDP, error) {
 	if config == nil {
-		eip.config = defaultConfig
-	} else {
-		eip.config = config
+		config = DefaultConfig()
 	}
-	eip.Devices = make(map[string]*Device)
 
-	var err error
-	var _udpAddr *net.UDPAddr
-	_udpAddr, err = net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", addr, eip.config.UDPPort))
+	udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", address, config.UDPPort))
 	if err != nil {
 		return nil, err
 	}
 
-	eip.udpAddr = []*net.UDPAddr{_udpAddr}
-
+	eip := &EIPUDP{}
+	eip.config = config
+	eip.udpAddr = make(map[*net.UDPAddr]bool)
+	eip.udpAddr[udpAddr] = true
+	eip.Devices = make(map[string]*Device)
 	return eip, nil
 }
 
-func NewUDPWithAutoScan(config *config) (*EIPUDP, error) {
-	eip := &EIPUDP{}
-
-	if config == nil {
-		eip.config = defaultConfig
-	} else {
-		eip.config = config
-	}
-	eip.Devices = make(map[string]*Device)
-
-	eip.udpAddr = []*net.UDPAddr{}
-
+func NewUDPWithAutoScan(config *Config) (*EIPUDP, error) {
 	netInterfaces, err := net.Interfaces()
 	if err != nil {
-		fmt.Println("net.Interfaces failed, err:", err.Error())
+		return nil, err
 	}
 
-	for i := 0; i < len(netInterfaces); i++ {
-		if (netInterfaces[i].Flags & net.FlagUp) != 0 {
-			addrs, _ := netInterfaces[i].Addrs()
+	if config == nil {
+		config = DefaultConfig()
+	}
 
-			for _, address := range addrs {
-				if ipnet, ok := address.(*net.IPNet); ok {
-					if ipnet.IP.To4() != nil {
-						ip := ipnet.IP.To4()
+	eip := &EIPUDP{}
+	eip.config = config
+	eip.Devices = make(map[string]*Device)
+	eip.udpAddr = make(map[*net.UDPAddr]bool)
+
+	for _, _interface := range netInterfaces {
+		if (_interface.Flags & net.FlagUp) != 0 {
+			addresses, _ := _interface.Addrs()
+			for _, address := range addresses {
+				if IPNet, ok := address.(*net.IPNet); ok {
+					if IPNet.IP.To4() != nil {
+						ip := IPNet.IP.To4()
 						ip[3] = 255
-						_udpAddr, _ := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", ip, eip.config.UDPPort))
-						eip.udpAddr = append(eip.udpAddr, _udpAddr)
+						udpAddr, err2 := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", ip, eip.config.UDPPort))
+						if err2 == nil {
+							eip.udpAddr[udpAddr] = true
+						}
 					}
 				}
 			}

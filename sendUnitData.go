@@ -2,7 +2,9 @@ package go_ethernet_ip
 
 import (
 	"bytes"
+	"errors"
 	"github.com/loki-os/go-ethernet-ip/typedef"
+	"time"
 )
 
 type sendUnitDataSpecificData struct {
@@ -28,7 +30,7 @@ func (r *sendUnitDataSpecificData) Decode(data []byte) {
 	r.Packet.Decode(dataReader)
 }
 
-func NewSendUnitData(session typedef.Udint, context typedef.Ulint, cpf *commonPacketFormat) *EncapsulationPacket {
+func NewSendUnitData(session typedef.Udint, context typedef.Ulint, cpf *commonPacketFormat, timeout typedef.Uint) *EncapsulationPacket {
 	encapsulationPacket := &EncapsulationPacket{}
 	encapsulationPacket.Command = EIPCommandSendUnitData
 	encapsulationPacket.SessionHandle = session
@@ -36,7 +38,7 @@ func NewSendUnitData(session typedef.Udint, context typedef.Ulint, cpf *commonPa
 
 	sd := &sendUnitDataSpecificData{
 		InterfaceHandle: 0,
-		TimeOut:         0,
+		TimeOut:         timeout,
 		Packet:          cpf,
 	}
 	encapsulationPacket.CommandSpecificData = sd.Encode()
@@ -45,13 +47,22 @@ func NewSendUnitData(session typedef.Udint, context typedef.Ulint, cpf *commonPa
 	return encapsulationPacket
 }
 
-func (e *EIPTCP) SendUnitData(cpf *commonPacketFormat, cb func(interface{}, error)) {
+func (e *EIPTCP) SendUnitData(cpf *commonPacketFormat, timeout typedef.Uint) (*sendUnitDataSpecificData, error) {
 	ctx := CtxGenerator()
-	e.router[ctx] = cb
+	e.receiver[ctx] = make(chan *EncapsulationPacket)
 
-	encapsulationPacket := NewSendUnitData(e.session, ctx, cpf)
+	encapsulationPacket := NewSendUnitData(e.session, ctx, cpf, timeout)
 	b, _ := encapsulationPacket.Encode()
 	e.sender <- b
+
+	for {
+		select {
+		case <-time.After(e.config.TCPTimeout):
+			return nil, errors.New("tcp timeout")
+		case received := <-e.receiver[ctx]:
+			return e.SendUnitDataDecode(received), nil
+		}
+	}
 }
 
 func (e *EIPTCP) SendUnitDataDecode(encapsulationPacket *EncapsulationPacket) *sendUnitDataSpecificData {
