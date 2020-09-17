@@ -39,7 +39,7 @@ This repository contains:
 I separate common industrial protocol from ethernet/ip.
 
 If your communication protocol is common industrial protocol, you should move to [go-cip](https://github.com/loki-os/go-cip) which base on this repository.
-s
+
 ## Install
 
 This project uses [golang](https://golang.org/). Go check them out if you don't have them locally installed.
