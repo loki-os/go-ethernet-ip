@@ -54,12 +54,12 @@ Also go modules is supported.
 
 I use some cip cases for demonstration.
 
-Before you use these cases.You should block your main thread.
+Before you use these cases.You should block your main thread.Because all logic run in go routine.
 
 ```go
 func block(){
 	some_case()
-	    
+
 	// you'd better find other way to do this. Sleep is not recommended.
 	time.Sleep(time.Second * 10)
 }
@@ -88,6 +88,7 @@ Connect() should be call before other function, otherwise it will fail.
 ```go
 cfg := DefaultConfig()
 cfg.TCPTimeout = time.Second * 5
+
 device.Connect(cfg)
 ```
 
