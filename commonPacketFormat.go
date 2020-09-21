@@ -27,12 +27,12 @@ func (i *CommonPacketFormatItem) Decode(dataReader *bytes.Reader) {
 	ReadByte(dataReader, &i.Data)
 }
 
-type commonPacketFormat struct {
+type CommonPacketFormat struct {
 	ItemCount typedef.Uint
 	Items     []CommonPacketFormatItem
 }
 
-func (c *commonPacketFormat) Encode() []byte {
+func (c *CommonPacketFormat) Encode() []byte {
 	buffer := new(bytes.Buffer)
 	WriteByte(buffer, c.ItemCount)
 	for _, item := range c.Items {
@@ -42,7 +42,7 @@ func (c *commonPacketFormat) Encode() []byte {
 	return buffer.Bytes()
 }
 
-func (c *commonPacketFormat) Decode(dataReader *bytes.Reader) {
+func (c *CommonPacketFormat) Decode(dataReader *bytes.Reader) {
 	ReadByte(dataReader, &c.ItemCount)
 
 	for i := typedef.Uint(0); i < c.ItemCount; i++ {
