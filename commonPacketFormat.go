@@ -33,13 +33,24 @@ type CommonPacketFormat struct {
 }
 
 func (c *CommonPacketFormat) Encode() []byte {
+	if c.ItemCount == 0 {
+		c.ItemCount = typedef.Uint(len(c.Items))
+	}
+
 	buffer := new(bytes.Buffer)
+
 	WriteByte(buffer, c.ItemCount)
+
 	for _, item := range c.Items {
 		WriteByte(buffer, item.Encode())
 	}
 
 	return buffer.Bytes()
+}
+
+func (c *CommonPacketFormat) New(items []CommonPacketFormatItem) {
+	c.ItemCount = typedef.Uint(len(c.Items))
+	c.Items = items
 }
 
 func (c *CommonPacketFormat) Decode(dataReader *bytes.Reader) {
