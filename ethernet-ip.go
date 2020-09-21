@@ -71,7 +71,7 @@ func (d *Device) ListInterface() (*ListInterface, error) {
 	return d.tcp.ListInterface()
 }
 
-func (d *Device) SendRRData(cpf *commonPacketFormat, timeout typedef.Uint) (*sendRRDataSpecificData, error) {
+func (d *Device) SendRRData(cpf *CommonPacketFormat, timeout typedef.Uint) (*sendRRDataSpecificData, error) {
 	e := d.Connect(nil)
 	if e != nil {
 		return nil, e
@@ -80,7 +80,7 @@ func (d *Device) SendRRData(cpf *commonPacketFormat, timeout typedef.Uint) (*sen
 	return d.tcp.SendRRData(cpf, timeout)
 }
 
-func (d *Device) SendUnitData(cpf *commonPacketFormat, timeout typedef.Uint) (*sendUnitDataSpecificData, error) {
+func (d *Device) SendUnitData(cpf *CommonPacketFormat, timeout typedef.Uint) (*sendUnitDataSpecificData, error) {
 	e := d.Connect(nil)
 	if e != nil {
 		return nil, e

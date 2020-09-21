@@ -5,19 +5,43 @@ import (
 	"github.com/loki-os/go-ethernet-ip/typedef"
 )
 
+type ItemID typedef.Uint
+
+const (
+	ItemIDUCMM                     ItemID = 0x0000
+	ItemIDListIdentityResponse     ItemID = 0x000C
+	ItemIDConnectionBased          ItemID = 0x00A1
+	ItemIDConnectedTransportPacket ItemID = 0x00B1
+	ItemIDUnconnectedMessage       ItemID = 0x00B2
+	ItemIDListServicesResponse     ItemID = 0x0100
+	ItemIDSockaddrInfoO2T          ItemID = 0x8000
+	ItemIDSockaddrInfoT2O          ItemID = 0x8001
+	ItemIDSequencedAddressItem     ItemID = 0x8002
+)
+
 type CommonPacketFormatItem struct {
-	TypeID typedef.Uint
+	TypeID ItemID
 	Length typedef.Uint
 	Data   []byte
 }
 
 func (i *CommonPacketFormatItem) Encode() []byte {
+	if i.Length == 0 {
+
+	}
+
 	buffer := new(bytes.Buffer)
 	WriteByte(buffer, i.TypeID)
 	WriteByte(buffer, i.Length)
 	WriteByte(buffer, i.Data)
 
 	return buffer.Bytes()
+}
+
+func (i *CommonPacketFormatItem) New(id ItemID, data []byte) {
+	i.TypeID = id
+	i.Data = data
+	i.Length = typedef.Uint(len(data))
 }
 
 func (i *CommonPacketFormatItem) Decode(dataReader *bytes.Reader) {

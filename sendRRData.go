@@ -10,7 +10,7 @@ import (
 type sendRRDataSpecificData struct {
 	InterfaceHandle typedef.Udint
 	TimeOut         typedef.Uint
-	Packet          *commonPacketFormat
+	Packet          *CommonPacketFormat
 }
 
 func (r *sendRRDataSpecificData) Encode() []byte {
@@ -26,11 +26,11 @@ func (r *sendRRDataSpecificData) Decode(data []byte) {
 	dataReader := bytes.NewReader(data)
 	ReadByte(dataReader, &r.InterfaceHandle)
 	ReadByte(dataReader, &r.TimeOut)
-	r.Packet = &commonPacketFormat{}
+	r.Packet = &CommonPacketFormat{}
 	r.Packet.Decode(dataReader)
 }
 
-func NewSendRRData(session typedef.Udint, context typedef.Ulint, cpf *commonPacketFormat, timeout typedef.Uint) *EncapsulationPacket {
+func NewSendRRData(session typedef.Udint, context typedef.Ulint, cpf *CommonPacketFormat, timeout typedef.Uint) *EncapsulationPacket {
 	encapsulationPacket := &EncapsulationPacket{}
 	encapsulationPacket.Command = EIPCommandSendRRData
 	encapsulationPacket.SessionHandle = session
@@ -47,7 +47,7 @@ func NewSendRRData(session typedef.Udint, context typedef.Ulint, cpf *commonPack
 	return encapsulationPacket
 }
 
-func (e *EIPTCP) SendRRData(cpf *commonPacketFormat, timeout typedef.Uint) (*sendRRDataSpecificData, error) {
+func (e *EIPTCP) SendRRData(cpf *CommonPacketFormat, timeout typedef.Uint) (*sendRRDataSpecificData, error) {
 	ctx := CtxGenerator()
 	e.receiver[ctx] = make(chan *EncapsulationPacket)
 
