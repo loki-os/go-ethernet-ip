@@ -5,13 +5,13 @@ import (
 	"github.com/loki-os/go-ethernet-ip/typedef"
 )
 
-type commonPacketFormatItem struct {
+type CommonPacketFormatItem struct {
 	TypeID typedef.Uint
 	Length typedef.Uint
 	Data   []byte
 }
 
-func (i *commonPacketFormatItem) Encode() []byte {
+func (i *CommonPacketFormatItem) Encode() []byte {
 	buffer := new(bytes.Buffer)
 	WriteByte(buffer, i.TypeID)
 	WriteByte(buffer, i.Length)
@@ -20,7 +20,7 @@ func (i *commonPacketFormatItem) Encode() []byte {
 	return buffer.Bytes()
 }
 
-func (i *commonPacketFormatItem) Decode(dataReader *bytes.Reader) {
+func (i *CommonPacketFormatItem) Decode(dataReader *bytes.Reader) {
 	ReadByte(dataReader, &i.TypeID)
 	ReadByte(dataReader, &i.Length)
 	i.Data = make([]byte, i.Length)
@@ -29,7 +29,7 @@ func (i *commonPacketFormatItem) Decode(dataReader *bytes.Reader) {
 
 type commonPacketFormat struct {
 	ItemCount typedef.Uint
-	Items     []commonPacketFormatItem
+	Items     []CommonPacketFormatItem
 }
 
 func (c *commonPacketFormat) Encode() []byte {
@@ -46,7 +46,7 @@ func (c *commonPacketFormat) Decode(dataReader *bytes.Reader) {
 	ReadByte(dataReader, &c.ItemCount)
 
 	for i := typedef.Uint(0); i < c.ItemCount; i++ {
-		item := &commonPacketFormatItem{}
+		item := &CommonPacketFormatItem{}
 		item.Decode(dataReader)
 		c.Items = append(c.Items, *item)
 	}
