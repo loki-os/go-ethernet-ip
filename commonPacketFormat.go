@@ -27,7 +27,7 @@ type CommonPacketFormatItem struct {
 
 func (i *CommonPacketFormatItem) Encode() []byte {
 	if i.Length == 0 {
-
+		i.Length = typedef.Uint(len(i.Data))
 	}
 
 	buffer := new(bytes.Buffer)
