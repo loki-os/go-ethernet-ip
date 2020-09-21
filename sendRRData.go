@@ -7,13 +7,13 @@ import (
 	"time"
 )
 
-type sendDataSpecificData struct {
+type SendDataSpecificData struct {
 	InterfaceHandle typedef.Udint
 	TimeOut         typedef.Uint
 	Packet          *CommonPacketFormat
 }
 
-func (r *sendDataSpecificData) Encode() []byte {
+func (r *SendDataSpecificData) Encode() []byte {
 	buffer := new(bytes.Buffer)
 	WriteByte(buffer, r.InterfaceHandle)
 	WriteByte(buffer, r.TimeOut)
@@ -22,7 +22,7 @@ func (r *sendDataSpecificData) Encode() []byte {
 	return buffer.Bytes()
 }
 
-func (r *sendDataSpecificData) Decode(data []byte) {
+func (r *SendDataSpecificData) Decode(data []byte) {
 	dataReader := bytes.NewReader(data)
 	ReadByte(dataReader, &r.InterfaceHandle)
 	ReadByte(dataReader, &r.TimeOut)
@@ -36,7 +36,7 @@ func NewSendRRData(session typedef.Udint, context typedef.Ulint, cpf *CommonPack
 	encapsulationPacket.SessionHandle = session
 	encapsulationPacket.SenderContext = context
 
-	sd := &sendDataSpecificData{
+	sd := &SendDataSpecificData{
 		InterfaceHandle: 0,
 		TimeOut:         timeout,
 		Packet:          cpf,
@@ -47,7 +47,7 @@ func NewSendRRData(session typedef.Udint, context typedef.Ulint, cpf *CommonPack
 	return encapsulationPacket
 }
 
-func (e *EIPTCP) SendRRData(cpf *CommonPacketFormat, timeout typedef.Uint) (*sendDataSpecificData, error) {
+func (e *EIPTCP) SendRRData(cpf *CommonPacketFormat, timeout typedef.Uint) (*SendDataSpecificData, error) {
 	ctx := CtxGenerator()
 	e.receiver[ctx] = make(chan *EncapsulationPacket)
 
@@ -65,12 +65,12 @@ func (e *EIPTCP) SendRRData(cpf *CommonPacketFormat, timeout typedef.Uint) (*sen
 	}
 }
 
-func (e *EIPTCP) SendRRDataDecode(encapsulationPacket *EncapsulationPacket) *sendDataSpecificData {
+func (e *EIPTCP) SendRRDataDecode(encapsulationPacket *EncapsulationPacket) *SendDataSpecificData {
 	if len(encapsulationPacket.CommandSpecificData) == 0 {
 		return nil
 	}
 
-	rrdata := &sendDataSpecificData{}
+	rrdata := &SendDataSpecificData{}
 	rrdata.Decode(encapsulationPacket.CommandSpecificData)
 
 	return rrdata

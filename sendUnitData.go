@@ -12,7 +12,7 @@ func NewSendUnitData(session typedef.Udint, context typedef.Ulint, cpf *CommonPa
 	encapsulationPacket.SessionHandle = session
 	encapsulationPacket.SenderContext = context
 
-	sd := &sendDataSpecificData{
+	sd := &SendDataSpecificData{
 		InterfaceHandle: 0,
 		TimeOut:         timeout,
 		Packet:          cpf,
@@ -23,7 +23,7 @@ func NewSendUnitData(session typedef.Udint, context typedef.Ulint, cpf *CommonPa
 	return encapsulationPacket
 }
 
-func (e *EIPTCP) SendUnitData(cpf *CommonPacketFormat, timeout typedef.Uint) (*sendDataSpecificData, error) {
+func (e *EIPTCP) SendUnitData(cpf *CommonPacketFormat, timeout typedef.Uint) (*SendDataSpecificData, error) {
 	ctx := CtxGenerator()
 	e.receiver[ctx] = make(chan *EncapsulationPacket)
 
@@ -41,12 +41,12 @@ func (e *EIPTCP) SendUnitData(cpf *CommonPacketFormat, timeout typedef.Uint) (*s
 	}
 }
 
-func (e *EIPTCP) SendUnitDataDecode(encapsulationPacket *EncapsulationPacket) *sendDataSpecificData {
+func (e *EIPTCP) SendUnitDataDecode(encapsulationPacket *EncapsulationPacket) *SendDataSpecificData {
 	if len(encapsulationPacket.CommandSpecificData) == 0 {
 		return nil
 	}
 
-	unitdata := &sendDataSpecificData{}
+	unitdata := &SendDataSpecificData{}
 	unitdata.Decode(encapsulationPacket.CommandSpecificData)
 
 	return unitdata
