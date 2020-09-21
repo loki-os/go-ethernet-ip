@@ -48,7 +48,7 @@ func (m *MessageRouterResponse) Decode(data []byte) {
 	ReadByte(dataReader, &m.Reserved)
 	ReadByte(dataReader, &m.GeneralStatus)
 	ReadByte(dataReader, &m.SizeOfAdditionalStatus)
-	m.AdditionalStatus = make([]byte, m.SizeOfAdditionalStatus)
+	m.AdditionalStatus = make([]byte, m.SizeOfAdditionalStatus*2)
 	ReadByte(dataReader, &m.AdditionalStatus)
 	m.ResponseData = make([]byte, dataReader.Len())
 	ReadByte(dataReader, &m.ResponseData)
