@@ -1,34 +1,10 @@
 package go_ethernet_ip
 
 import (
-	"bytes"
 	"errors"
 	"github.com/loki-os/go-ethernet-ip/typedef"
 	"time"
 )
-
-type sendUnitDataSpecificData struct {
-	InterfaceHandle typedef.Udint
-	TimeOut         typedef.Uint
-	Packet          *CommonPacketFormat
-}
-
-func (r *sendUnitDataSpecificData) Encode() []byte {
-	buffer := new(bytes.Buffer)
-	WriteByte(buffer, r.InterfaceHandle)
-	WriteByte(buffer, r.TimeOut)
-	WriteByte(buffer, r.Packet.Encode())
-
-	return buffer.Bytes()
-}
-
-func (r *sendUnitDataSpecificData) Decode(data []byte) {
-	dataReader := bytes.NewReader(data)
-	ReadByte(dataReader, &r.InterfaceHandle)
-	ReadByte(dataReader, &r.TimeOut)
-	r.Packet = &CommonPacketFormat{}
-	r.Packet.Decode(dataReader)
-}
 
 func NewSendUnitData(session typedef.Udint, context typedef.Ulint, cpf *CommonPacketFormat, timeout typedef.Uint) *EncapsulationPacket {
 	encapsulationPacket := &EncapsulationPacket{}
@@ -36,7 +12,7 @@ func NewSendUnitData(session typedef.Udint, context typedef.Ulint, cpf *CommonPa
 	encapsulationPacket.SessionHandle = session
 	encapsulationPacket.SenderContext = context
 
-	sd := &sendUnitDataSpecificData{
+	sd := &sendDataSpecificData{
 		InterfaceHandle: 0,
 		TimeOut:         timeout,
 		Packet:          cpf,
@@ -47,7 +23,7 @@ func NewSendUnitData(session typedef.Udint, context typedef.Ulint, cpf *CommonPa
 	return encapsulationPacket
 }
 
-func (e *EIPTCP) SendUnitData(cpf *CommonPacketFormat, timeout typedef.Uint) (*sendUnitDataSpecificData, error) {
+func (e *EIPTCP) SendUnitData(cpf *CommonPacketFormat, timeout typedef.Uint) (*sendDataSpecificData, error) {
 	ctx := CtxGenerator()
 	e.receiver[ctx] = make(chan *EncapsulationPacket)
 
@@ -65,12 +41,12 @@ func (e *EIPTCP) SendUnitData(cpf *CommonPacketFormat, timeout typedef.Uint) (*s
 	}
 }
 
-func (e *EIPTCP) SendUnitDataDecode(encapsulationPacket *EncapsulationPacket) *sendUnitDataSpecificData {
+func (e *EIPTCP) SendUnitDataDecode(encapsulationPacket *EncapsulationPacket) *sendDataSpecificData {
 	if len(encapsulationPacket.CommandSpecificData) == 0 {
 		return nil
 	}
 
-	unitdata := &sendUnitDataSpecificData{}
+	unitdata := &sendDataSpecificData{}
 	unitdata.Decode(encapsulationPacket.CommandSpecificData)
 
 	return unitdata

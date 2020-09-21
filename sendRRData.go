@@ -7,13 +7,13 @@ import (
 	"time"
 )
 
-type sendRRDataSpecificData struct {
+type sendDataSpecificData struct {
 	InterfaceHandle typedef.Udint
 	TimeOut         typedef.Uint
 	Packet          *CommonPacketFormat
 }
 
-func (r *sendRRDataSpecificData) Encode() []byte {
+func (r *sendDataSpecificData) Encode() []byte {
 	buffer := new(bytes.Buffer)
 	WriteByte(buffer, r.InterfaceHandle)
 	WriteByte(buffer, r.TimeOut)
@@ -22,7 +22,7 @@ func (r *sendRRDataSpecificData) Encode() []byte {
 	return buffer.Bytes()
 }
 
-func (r *sendRRDataSpecificData) Decode(data []byte) {
+func (r *sendDataSpecificData) Decode(data []byte) {
 	dataReader := bytes.NewReader(data)
 	ReadByte(dataReader, &r.InterfaceHandle)
 	ReadByte(dataReader, &r.TimeOut)
@@ -36,7 +36,7 @@ func NewSendRRData(session typedef.Udint, context typedef.Ulint, cpf *CommonPack
 	encapsulationPacket.SessionHandle = session
 	encapsulationPacket.SenderContext = context
 
-	sd := &sendRRDataSpecificData{
+	sd := &sendDataSpecificData{
 		InterfaceHandle: 0,
 		TimeOut:         timeout,
 		Packet:          cpf,
@@ -47,7 +47,7 @@ func NewSendRRData(session typedef.Udint, context typedef.Ulint, cpf *CommonPack
 	return encapsulationPacket
 }
 
-func (e *EIPTCP) SendRRData(cpf *CommonPacketFormat, timeout typedef.Uint) (*sendRRDataSpecificData, error) {
+func (e *EIPTCP) SendRRData(cpf *CommonPacketFormat, timeout typedef.Uint) (*sendDataSpecificData, error) {
 	ctx := CtxGenerator()
 	e.receiver[ctx] = make(chan *EncapsulationPacket)
 
@@ -65,12 +65,12 @@ func (e *EIPTCP) SendRRData(cpf *CommonPacketFormat, timeout typedef.Uint) (*sen
 	}
 }
 
-func (e *EIPTCP) SendRRDataDecode(encapsulationPacket *EncapsulationPacket) *sendRRDataSpecificData {
+func (e *EIPTCP) SendRRDataDecode(encapsulationPacket *EncapsulationPacket) *sendDataSpecificData {
 	if len(encapsulationPacket.CommandSpecificData) == 0 {
 		return nil
 	}
 
-	rrdata := &sendRRDataSpecificData{}
+	rrdata := &sendDataSpecificData{}
 	rrdata.Decode(encapsulationPacket.CommandSpecificData)
 
 	return rrdata
