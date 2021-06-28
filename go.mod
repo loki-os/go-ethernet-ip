@@ -1,3 +1,3 @@
 module github.com/loki-os/go-ethernet-ip
 
-go 1.15
+go 1.16

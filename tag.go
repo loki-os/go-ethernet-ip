@@ -1,0 +1,371 @@
+package go_ethernet_ip
+
+import (
+	"bytes"
+	"fmt"
+	"github.com/loki-os/go-ethernet-ip/bufferx"
+	"github.com/loki-os/go-ethernet-ip/messages/packet"
+	"github.com/loki-os/go-ethernet-ip/path"
+	"github.com/loki-os/go-ethernet-ip/types"
+)
+
+const (
+	NULL   types.UInt = 0x00
+	BOOL   types.UInt = 0xc1
+	SINT   types.UInt = 0xc2
+	INT    types.UInt = 0xc3
+	DINT   types.UInt = 0xc4
+	LINT   types.UInt = 0xc5
+	USINT  types.UInt = 0xc6
+	UINT   types.UInt = 0xc7
+	UDINT  types.UInt = 0xc8
+	ULINT  types.UInt = 0xc9
+	REAL   types.UInt = 0xca
+	LREAL  types.UInt = 0xcb
+	STRING types.UInt = 0xfce
+)
+
+var TypeMap = map[types.UInt]string{
+	NULL:   "NULL",
+	BOOL:   "BOOL",
+	SINT:   "SINT",
+	INT:    "INT",
+	DINT:   "DINT",
+	LINT:   "LINT",
+	USINT:  "USINT",
+	UINT:   "UINT",
+	UDINT:  "UDINT",
+	ULINT:  "ULINT",
+	REAL:   "REAL",
+	LREAL:  "LREAL",
+	STRING: "STRING",
+}
+
+type Tag struct {
+	TCP *EIPTCP
+
+	instanceID types.UDInt
+	nameLen    types.UInt
+	name       []byte
+	Type       types.UInt
+	dim1Len    types.UDInt
+	dim2Len    types.UDInt
+	dim3Len    types.UDInt
+	changed    bool
+
+	value    []byte
+	Onchange func()
+}
+
+func (t *Tag) Read() error {
+	res, err := t.TCP.Send(t.readRequest())
+	if err != nil {
+		return err
+	}
+
+	mrres := new(packet.MessageRouterResponse)
+	mrres.Decode(res.Packet.Items[1].Data)
+
+	t.readParser(mrres)
+	return nil
+}
+
+func (t *Tag) readRequest() *packet.MessageRouterRequest {
+	io := bufferx.New(nil)
+	io.WL(t.count())
+	mr := packet.NewMessageRouter(packet.ServiceReadTag, packet.Paths(
+		path.LogicalBuild(path.LogicalTypeClassID, 0x6B, true),
+		path.LogicalBuild(path.LogicalTypeInstanceID, t.instanceID, true),
+	), io.Bytes())
+	return mr
+}
+
+func (t *Tag) readParser(mr *packet.MessageRouterResponse) {
+	io := bufferx.New(mr.ResponseData)
+
+	_t := uint16(0)
+	io.RL(&_t)
+
+	if _t == 0x2a0 {
+		io.RL(&_t)
+	}
+
+	payload := make([]byte, io.Len())
+	io.RL(payload)
+
+	if bytes.Compare(t.value, payload) != 0 {
+		t.value = payload
+		if t.Onchange != nil {
+			t.Onchange()
+		}
+	}
+}
+
+func (t *Tag) Write() error {
+	_, err := t.TCP.Send(multiple(t.writeRequest()))
+	return err
+}
+
+func (t *Tag) writeRequest() []*packet.MessageRouterRequest {
+	var result []*packet.MessageRouterRequest
+	if 0x8000&t.Type == 0 {
+		io := bufferx.New(nil)
+		io.WL(t.Type)
+		io.WL(t.count())
+		io.WL(t.value)
+
+		mr := packet.NewMessageRouter(packet.ServiceWriteTag, packet.Paths(
+			path.LogicalBuild(path.LogicalTypeClassID, 0x6B, true),
+			path.LogicalBuild(path.LogicalTypeInstanceID, t.instanceID, true),
+		), io.Bytes())
+		result = append(result, mr)
+	} else {
+		// only string
+		io := bufferx.New(nil)
+		io.WL(DINT)
+		io.WL(types.UInt(1))
+		io.WL(types.UDInt(len(t.value)))
+		mr1 := packet.NewMessageRouter(packet.ServiceWriteTag, packet.Paths(
+			path.LogicalBuild(path.LogicalTypeClassID, 0x6B, true),
+			path.LogicalBuild(path.LogicalTypeInstanceID, t.instanceID, true),
+			path.DataBuild(path.DataTypeANSI, []byte("LEN"), true),
+		), io.Bytes())
+		result = append(result, mr1)
+
+		io1 := bufferx.New(nil)
+		io1.WL(SINT)
+		io1.WL(types.UInt(len(t.value)))
+		io1.WL(t.value)
+		mr2 := packet.NewMessageRouter(packet.ServiceWriteTag, packet.Paths(
+			path.LogicalBuild(path.LogicalTypeClassID, 0x6B, true),
+			path.LogicalBuild(path.LogicalTypeInstanceID, t.instanceID, true),
+			path.DataBuild(path.DataTypeANSI, []byte("DATA"), true),
+		), io1.Bytes())
+		result = append(result, mr2)
+	}
+
+	return result
+}
+
+func (t *Tag) SetInt32(i uint32) {
+	t.changed = true
+	io := bufferx.New(nil)
+	io.WL(i)
+	t.value = io.Bytes()
+}
+
+func (t *Tag) SetString(i string) {
+	t.changed = true
+	io := bufferx.New(nil)
+	io.WL([]byte(i))
+	t.value = io.Bytes()
+}
+
+func (t *Tag) dims() types.USInt {
+	return types.USInt((0x6000 & t.Type) >> 13)
+}
+
+func (t *Tag) TypeString() string {
+	var _type string
+	if 0x8000&t.Type == 0 {
+		_type = "atomic"
+	} else {
+		_type = "struct"
+	}
+
+	return fmt.Sprintf("%#04x(%6s) | %s | %d dims", uint16(t.Type), TypeMap[0xFFF&t.Type], _type, (0x6000&t.Type)>>13)
+}
+
+func (t *Tag) Name() string {
+	return string(t.name)
+}
+
+func (t *Tag) count() types.UInt {
+	a := types.UInt(1)
+	if t.dim1Len > 0 {
+		a = types.UInt(t.dim1Len)
+	}
+	b := types.UInt(1)
+	if t.dim2Len > 0 {
+		b = types.UInt(t.dim2Len)
+	}
+	c := types.UInt(1)
+	if t.dim3Len > 0 {
+		c = types.UInt(t.dim3Len)
+	}
+	return a * b * c
+}
+
+func multiple(mrs []*packet.MessageRouterRequest) *packet.MessageRouterRequest {
+	if len(mrs) == 1 {
+		return mrs[0]
+	} else {
+		io := bufferx.New(nil)
+		io.WL(types.UInt(len(mrs)))
+		offset := 2 * (len(mrs) + 1) // offset0 = 上一个(2) + 所有offset的长度的长度综合 2xN
+		io.WL(types.UInt(offset))
+		for i := range mrs {
+			if i != len(mrs)-1 {
+				offset += len(mrs[i].Encode())
+				io.WL(types.UInt(offset))
+			}
+		}
+		for i := range mrs {
+			io.WL(mrs[i].Encode())
+		}
+		return packet.NewMessageRouter(packet.ServiceMultipleServicePacket, packet.Paths(
+			path.LogicalBuild(path.LogicalTypeClassID, 0x02, true),
+			path.LogicalBuild(path.LogicalTypeInstanceID, 0x01, true),
+		), io.Bytes())
+	}
+}
+
+func (t *EIPTCP) AllTags() (map[string]*Tag, error) {
+	result := make(map[string]*Tag)
+	return t.allTags(result, 0)
+}
+
+func (t *EIPTCP) allTags(tagMap map[string]*Tag, instanceID types.UDInt) (map[string]*Tag, error) {
+	paths := packet.Paths(
+		path.LogicalBuild(path.LogicalTypeClassID, 0x6B, true),
+		path.LogicalBuild(path.LogicalTypeInstanceID, instanceID, true),
+	)
+
+	io := bufferx.New(nil)
+	io.WL(types.UInt(3))
+	io.WL(types.UInt(1))
+	io.WL(types.UInt(2))
+	io.WL(types.UInt(8))
+
+	mr := packet.NewMessageRouter(packet.ServiceGetInstanceAttributeList, paths, io.Bytes())
+
+	res, err := t.Send(mr)
+	if err != nil {
+		return nil, err
+	}
+
+	mrres := new(packet.MessageRouterResponse)
+	mrres.Decode(res.Packet.Items[1].Data)
+
+	io1 := bufferx.New(mrres.ResponseData)
+	for io1.Len() > 0 {
+		tag := new(Tag)
+		tag.TCP = t
+
+		io1.RL(&tag.instanceID)
+		io1.RL(&tag.nameLen)
+		tag.name = make([]byte, tag.nameLen)
+		io1.RL(tag.name)
+		io1.RL(&tag.Type)
+		io1.RL(&tag.dim1Len)
+		io1.RL(&tag.dim2Len)
+		io1.RL(&tag.dim3Len)
+
+		tagMap[tag.Name()] = tag
+		instanceID = tag.instanceID
+	}
+
+	if mrres.GeneralStatus == 0x06 {
+		return t.allTags(tagMap, instanceID+1)
+	}
+
+	return tagMap, nil
+}
+
+type tagGroup struct {
+	tags map[types.UDInt]*Tag
+}
+
+func NewTagGroup() *tagGroup {
+	return &tagGroup{tags: make(map[types.UDInt]*Tag)}
+}
+
+func (tg *tagGroup) Add(tag *Tag) {
+	tg.tags[tag.instanceID] = tag
+}
+
+func (tg *tagGroup) Remove(tag *Tag) {
+	delete(tg.tags, tag.instanceID)
+}
+
+func (tg *tagGroup) Read() error {
+	if len(tg.tags) == 0 {
+		return nil
+	}
+
+	if len(tg.tags) == 1 {
+		for _, v := range tg.tags {
+			return v.Read()
+		}
+	}
+
+	var tcp *EIPTCP
+
+	var list []types.UDInt
+	var mrs []*packet.MessageRouterRequest
+
+	for i := range tg.tags {
+		list = append(list, tg.tags[i].instanceID)
+		mrs = append(mrs, tg.tags[i].readRequest())
+		tcp = tg.tags[i].TCP
+	}
+
+	res, err := tcp.Send(multiple(mrs))
+	if err != nil {
+		return err
+	}
+
+	rmr := &packet.MessageRouterResponse{}
+	rmr.Decode(res.Packet.Items[1].Data)
+
+	io1 := bufferx.New(rmr.ResponseData)
+	count := types.UInt(0)
+	io1.RL(&count)
+	var offsets []types.UInt
+	for i := types.UInt(0); i < count; i++ {
+		one := types.UInt(0)
+		io1.RL(&one)
+		offsets = append(offsets, one)
+	}
+	for i2 := range list {
+		mr := &packet.MessageRouterResponse{}
+		if (i2 + 1) != len(offsets) {
+			mr.Decode(rmr.ResponseData[offsets[i2]:offsets[i2+1]])
+		} else {
+			mr.Decode(rmr.ResponseData[offsets[i2]:])
+		}
+		tg.tags[list[i2]].readParser(mr)
+	}
+
+	return nil
+}
+
+func (tg *tagGroup) Write() error {
+	if len(tg.tags) == 0 {
+		return nil
+	}
+
+	if len(tg.tags) == 1 {
+		for _, v := range tg.tags {
+			return v.Write()
+		}
+	}
+
+	var tcp *EIPTCP
+
+	var list []types.UDInt
+	var mrs []*packet.MessageRouterRequest
+
+	for i := range tg.tags {
+		list = append(list, tg.tags[i].instanceID)
+		mrs = append(mrs, tg.tags[i].writeRequest()...)
+		tcp = tg.tags[i].TCP
+	}
+
+	_, err := tcp.Send(multiple(mrs))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
