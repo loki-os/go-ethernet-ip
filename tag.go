@@ -357,25 +357,22 @@ func (tg *TagGroup) Read() error {
 }
 
 func (tg *TagGroup) Write() error {
-	if len(tg.tags) == 0 {
-		return nil
-	}
-
-	if len(tg.tags) == 1 {
-		for _, v := range tg.tags {
-			return v.Write()
-		}
-	}
-
 	var tcp *EIPTCP
 
 	var list []types.UDInt
 	var mrs []*packet.MessageRouterRequest
 
 	for i := range tg.tags {
-		list = append(list, tg.tags[i].instanceID)
-		mrs = append(mrs, tg.tags[i].writeRequest()...)
-		tcp = tg.tags[i].TCP
+		if tg.tags[i].changed {
+			list = append(list, tg.tags[i].instanceID)
+			mrs = append(mrs, tg.tags[i].writeRequest()...)
+			tcp = tg.tags[i].TCP
+			tg.tags[i].changed = false
+		}
+	}
+
+	if len(list) == 0 {
+		return nil
 	}
 
 	_, err := tcp.Send(multiple(mrs))
