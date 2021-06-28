@@ -288,23 +288,23 @@ func (t *EIPTCP) allTags(tagMap map[string]*Tag, instanceID types.UDInt) (map[st
 	return tagMap, nil
 }
 
-type tagGroup struct {
+type TagGroup struct {
 	tags map[types.UDInt]*Tag
 }
 
-func NewTagGroup() *tagGroup {
-	return &tagGroup{tags: make(map[types.UDInt]*Tag)}
+func NewTagGroup() *TagGroup {
+	return &TagGroup{tags: make(map[types.UDInt]*Tag)}
 }
 
-func (tg *tagGroup) Add(tag *Tag) {
+func (tg *TagGroup) Add(tag *Tag) {
 	tg.tags[tag.instanceID] = tag
 }
 
-func (tg *tagGroup) Remove(tag *Tag) {
+func (tg *TagGroup) Remove(tag *Tag) {
 	delete(tg.tags, tag.instanceID)
 }
 
-func (tg *tagGroup) Read() error {
+func (tg *TagGroup) Read() error {
 	if len(tg.tags) == 0 {
 		return nil
 	}
@@ -356,7 +356,7 @@ func (tg *tagGroup) Read() error {
 	return nil
 }
 
-func (tg *tagGroup) Write() error {
+func (tg *TagGroup) Write() error {
 	if len(tg.tags) == 0 {
 		return nil
 	}
