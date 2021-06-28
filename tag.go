@@ -196,6 +196,22 @@ func (t *Tag) count() types.UInt {
 	return a * b * c
 }
 
+func (t *Tag) Int32() int32 {
+	io := bufferx.New(t.value)
+	var val int32
+	io.RL(&val)
+	return val
+}
+
+func (t *Tag) String() string {
+	io := bufferx.New(t.value)
+	_len := types.UDInt(0)
+	io.RL(&_len)
+	val := make([]byte, _len)
+	io.RL(&val)
+	return string(val)
+}
+
 func multiple(mrs []*packet.MessageRouterRequest) *packet.MessageRouterRequest {
 	if len(mrs) == 1 {
 		return mrs[0]
