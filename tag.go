@@ -147,7 +147,7 @@ func (t *Tag) writeRequest() []*packet.MessageRouterRequest {
 	return result
 }
 
-func (t *Tag) SetInt32(i uint32) {
+func (t *Tag) SetInt32(i int32) {
 	t.changed = true
 	io := bufferx.New(nil)
 	io.WL(i)
