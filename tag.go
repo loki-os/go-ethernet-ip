@@ -290,7 +290,7 @@ func (t *EIPTCP) allTags(tagMap map[string]*Tag, instanceID types.UDInt) (map[st
 
 type TagGroup struct {
 	tags map[types.UDInt]*Tag
-	tcp  *EIPTCP
+	Tcp  *EIPTCP
 }
 
 func NewTagGroup() *TagGroup {
@@ -298,10 +298,10 @@ func NewTagGroup() *TagGroup {
 }
 
 func (tg *TagGroup) Add(tag *Tag) {
-	if tg.tcp == nil {
-		tg.tcp = tag.TCP
+	if tg.Tcp == nil {
+		tg.Tcp = tag.TCP
 	} else {
-		if tg.tcp != tag.TCP {
+		if tg.Tcp != tag.TCP {
 			return
 		}
 	}
@@ -331,7 +331,7 @@ func (tg *TagGroup) Read() error {
 		mrs = append(mrs, tg.tags[i].readRequest())
 	}
 
-	res, err := tg.tcp.Send(multiple(mrs))
+	res, err := tg.Tcp.Send(multiple(mrs))
 	if err != nil {
 		return err
 	}
@@ -377,7 +377,7 @@ func (tg *TagGroup) Write() error {
 		return nil
 	}
 
-	_, err := tg.tcp.Send(multiple(mrs))
+	_, err := tg.Tcp.Send(multiple(mrs))
 	if err != nil {
 		return err
 	}
