@@ -290,6 +290,7 @@ func (t *EIPTCP) allTags(tagMap map[string]*Tag, instanceID types.UDInt) (map[st
 
 type TagGroup struct {
 	tags map[types.UDInt]*Tag
+	tcp  *EIPTCP
 }
 
 func NewTagGroup() *TagGroup {
@@ -297,6 +298,13 @@ func NewTagGroup() *TagGroup {
 }
 
 func (tg *TagGroup) Add(tag *Tag) {
+	if tg.tcp == nil {
+		tg.tcp = tag.TCP
+	} else {
+		if tg.tcp != tag.TCP {
+			return
+		}
+	}
 	tg.tags[tag.instanceID] = tag
 }
 
@@ -315,18 +323,15 @@ func (tg *TagGroup) Read() error {
 		}
 	}
 
-	var tcp *EIPTCP
-
 	var list []types.UDInt
 	var mrs []*packet.MessageRouterRequest
 
 	for i := range tg.tags {
 		list = append(list, tg.tags[i].instanceID)
 		mrs = append(mrs, tg.tags[i].readRequest())
-		tcp = tg.tags[i].TCP
 	}
 
-	res, err := tcp.Send(multiple(mrs))
+	res, err := tg.tcp.Send(multiple(mrs))
 	if err != nil {
 		return err
 	}
@@ -357,8 +362,6 @@ func (tg *TagGroup) Read() error {
 }
 
 func (tg *TagGroup) Write() error {
-	var tcp *EIPTCP
-
 	var list []types.UDInt
 	var mrs []*packet.MessageRouterRequest
 
@@ -366,7 +369,6 @@ func (tg *TagGroup) Write() error {
 		if tg.tags[i].changed {
 			list = append(list, tg.tags[i].instanceID)
 			mrs = append(mrs, tg.tags[i].writeRequest()...)
-			tcp = tg.tags[i].TCP
 			tg.tags[i].changed = false
 		}
 	}
@@ -375,7 +377,7 @@ func (tg *TagGroup) Write() error {
 		return nil
 	}
 
-	_, err := tcp.Send(multiple(mrs))
+	_, err := tg.tcp.Send(multiple(mrs))
 	if err != nil {
 		return err
 	}
