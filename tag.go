@@ -96,7 +96,7 @@ func (t *Tag) readParser(mr *packet.MessageRouterResponse) {
 	if bytes.Compare(t.value, payload) != 0 {
 		t.value = payload
 		if t.Onchange != nil {
-			t.Onchange()
+			go t.Onchange()
 		}
 	}
 }
