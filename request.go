@@ -15,11 +15,21 @@ import (
 	"github.com/loki-os/go-ethernet-ip/types"
 	"github.com/loki-os/go-ethernet-ip/utils"
 	"math/rand"
+	"time"
 )
 
+var lastrequest = time.Now()
+
 func (t *EIPTCP) request(packet *packet.Packet) (*packet.Packet, error) {
+	since := time.Millisecond*10 - time.Since(lastrequest)
+	if since > 0 {
+		time.Sleep(since)
+	}
 	t.requestLock.Lock()
-	defer t.requestLock.Unlock()
+	defer func() {
+		t.requestLock.Unlock()
+		lastrequest = time.Now()
+	}()
 
 	if t.tcpConn == nil {
 		return nil, errors.New("connect first")
