@@ -1,6 +1,7 @@
 package go_ethernet_ip
 
 import (
+	"errors"
 	"github.com/loki-os/go-ethernet-ip/bufferx"
 	"github.com/loki-os/go-ethernet-ip/messages/listIdentity"
 	"github.com/loki-os/go-ethernet-ip/messages/listInterface"
@@ -17,12 +18,12 @@ import (
 )
 
 func (t *EIPTCP) request(packet *packet.Packet) (*packet.Packet, error) {
-	//if t.tcpConn == nil {
-	//	return nil, errors.New("connect first")
-	//}
-
 	t.requestLock.Lock()
 	defer t.requestLock.Unlock()
+
+	if t.tcpConn == nil {
+		return nil, errors.New("connect first")
+	}
 
 	b, err := packet.Encode()
 	if err != nil {

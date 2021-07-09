@@ -98,8 +98,8 @@ func NewTCP(address string, config *Config) (*EIPTCP, error) {
 	}
 
 	return &EIPTCP{
+		requestLock: new(sync.Mutex),
 		config:      config,
 		tcpAddr:     tcpAddress,
-		requestLock: new(sync.Mutex),
 	}, nil
 }
