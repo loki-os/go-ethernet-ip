@@ -331,7 +331,8 @@ func (tg *TagGroup) Read() error {
 		mrs = append(mrs, tg.tags[i].readRequest())
 	}
 
-	res, err := tg.Tcp.Send(multiple(mrs))
+	_sb := multiple(mrs)
+	res, err := tg.Tcp.Send(_sb)
 	if err != nil {
 		return err
 	}
@@ -342,6 +343,11 @@ func (tg *TagGroup) Read() error {
 	io1 := bufferx.New(rmr.ResponseData)
 	count := types.UInt(0)
 	io1.RL(&count)
+
+	if int(count) != len(list) {
+		return nil
+	}
+
 	var offsets []types.UInt
 	for i := types.UInt(0); i < count; i++ {
 		one := types.UInt(0)
