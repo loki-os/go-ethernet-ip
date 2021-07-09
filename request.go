@@ -15,21 +15,11 @@ import (
 	"github.com/loki-os/go-ethernet-ip/types"
 	"github.com/loki-os/go-ethernet-ip/utils"
 	"math/rand"
-	"time"
 )
-
-var lastrequest = time.Now()
 
 func (t *EIPTCP) request(packet *packet.Packet) (*packet.Packet, error) {
 	t.requestLock.Lock()
-	defer func() {
-		t.requestLock.Unlock()
-		lastrequest = time.Now()
-	}()
-	since := time.Millisecond*10 - time.Since(lastrequest)
-	if since > 0 {
-		time.Sleep(since)
-	}
+	defer t.requestLock.Unlock()
 
 	if t.tcpConn == nil {
 		return nil, errors.New("connect first")
@@ -187,13 +177,13 @@ func (t *EIPTCP) ForwardOpen() error {
 	// TimeOut Multiplier
 	io.WL(types.UDInt(3))
 	// O->T RPI
-	io.WL(types.UDInt(10000))
+	io.WL(types.UDInt(8000))
 	// O->T Network Connection Params
-	io.WL(types.UInt(0x47D0))
+	io.WL(types.UInt(0x43f4))
 	// T->O RPI
-	io.WL(types.UDInt(10000))
+	io.WL(types.UDInt(8000))
 	// T->O Network Connection Params
-	io.WL(types.UInt(0x47D0))
+	io.WL(types.UInt(0x43f4))
 	// TransportClass_Trigger (Vol.1 - 3-4.4.3) -> Target is a Server, Application object of Transport Class 3.
 	io.WL(types.USInt(0xA3))
 
