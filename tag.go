@@ -54,6 +54,7 @@ type Tag struct {
 	changed    bool
 
 	value    []byte
+	wValue   []byte
 	Onchange func()
 }
 
@@ -102,7 +103,11 @@ func (t *Tag) readParser(mr *packet.MessageRouterResponse) {
 }
 
 func (t *Tag) Write() error {
+	if t.wValue == nil {
+		t.wValue = t.value
+	}
 	_, err := t.TCP.Send(multiple(t.writeRequest()))
+	t.wValue = nil
 	return err
 }
 
@@ -112,7 +117,7 @@ func (t *Tag) writeRequest() []*packet.MessageRouterRequest {
 		io := bufferx.New(nil)
 		io.WL(t.Type)
 		io.WL(t.count())
-		io.WL(t.value)
+		io.WL(t.wValue)
 
 		mr := packet.NewMessageRouter(packet.ServiceWriteTag, packet.Paths(
 			path.LogicalBuild(path.LogicalTypeClassID, 0x6B, true),
@@ -124,7 +129,7 @@ func (t *Tag) writeRequest() []*packet.MessageRouterRequest {
 		io := bufferx.New(nil)
 		io.WL(DINT)
 		io.WL(types.UInt(1))
-		io.WL(types.UDInt(len(t.value)))
+		io.WL(types.UDInt(len(t.wValue)))
 		mr1 := packet.NewMessageRouter(packet.ServiceWriteTag, packet.Paths(
 			path.LogicalBuild(path.LogicalTypeClassID, 0x6B, true),
 			path.LogicalBuild(path.LogicalTypeInstanceID, t.instanceID, true),
@@ -134,8 +139,8 @@ func (t *Tag) writeRequest() []*packet.MessageRouterRequest {
 
 		io1 := bufferx.New(nil)
 		io1.WL(SINT)
-		io1.WL(types.UInt(len(t.value)))
-		io1.WL(t.value)
+		io1.WL(types.UInt(len(t.wValue)))
+		io1.WL(t.wValue)
 		mr2 := packet.NewMessageRouter(packet.ServiceWriteTag, packet.Paths(
 			path.LogicalBuild(path.LogicalTypeClassID, 0x6B, true),
 			path.LogicalBuild(path.LogicalTypeInstanceID, t.instanceID, true),
@@ -151,14 +156,14 @@ func (t *Tag) SetInt32(i int32) {
 	t.changed = true
 	io := bufferx.New(nil)
 	io.WL(i)
-	t.value = io.Bytes()
+	t.wValue = io.Bytes()
 }
 
 func (t *Tag) SetString(i string) {
 	t.changed = true
 	io := bufferx.New(nil)
 	io.WL([]byte(i))
-	t.value = io.Bytes()
+	t.wValue = io.Bytes()
 }
 
 func (t *Tag) dims() types.USInt {
