@@ -217,6 +217,34 @@ func (t *Tag) String() string {
 	return string(val)
 }
 
+func (t *Tag) XInt32() int32 {
+	var _value []byte
+	if len(t.wValue) > 0 {
+		_value = t.wValue
+	} else {
+		_value = t.value
+	}
+	io := bufferx.New(_value)
+	var val int32
+	io.RL(&val)
+	return val
+}
+
+func (t *Tag) XString() string {
+	var _value []byte
+	if len(t.wValue) > 0 {
+		_value = t.wValue
+	} else {
+		_value = t.value
+	}
+	io := bufferx.New(_value)
+	_len := types.UDInt(0)
+	io.RL(&_len)
+	val := make([]byte, _len)
+	io.RL(&val)
+	return string(val)
+}
+
 func multiple(mrs []*packet.MessageRouterRequest) *packet.MessageRouterRequest {
 	if len(mrs) == 1 {
 		return mrs[0]
