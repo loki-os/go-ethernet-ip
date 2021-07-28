@@ -447,11 +447,9 @@ func (tg *TagGroup) Write() error {
 		return err
 	}
 	for i := range tg.tags {
-		if tg.tags[i].changed {
-			if tg.tags[i].wValue != nil {
-				copy(tg.tags[i].value, tg.tags[i].wValue)
-				tg.tags[i].wValue = nil
-			}
+		if tg.tags[i].wValue != nil {
+			copy(tg.tags[i].value, tg.tags[i].wValue)
+			tg.tags[i].wValue = nil
 		}
 	}
 
