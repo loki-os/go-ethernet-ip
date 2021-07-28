@@ -423,7 +423,7 @@ func (tg *TagGroup) Read() error {
 		})
 	}
 	for i := range cbs {
-		cbs[i]()
+		go cbs[i]()
 	}
 
 	return nil
