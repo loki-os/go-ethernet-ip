@@ -107,7 +107,12 @@ func (t *Tag) Write() error {
 		t.wValue = t.value
 	}
 	_, err := t.TCP.Send(multiple(t.writeRequest()))
-	t.wValue = nil
+	if err == nil {
+		if t.wValue != nil {
+			t.value = t.wValue
+			t.wValue = nil
+		}
+	}
 	return err
 }
 
@@ -419,6 +424,14 @@ func (tg *TagGroup) Write() error {
 	_, err := tg.Tcp.Send(multiple(mrs))
 	if err != nil {
 		return err
+	}
+	for i := range tg.tags {
+		if tg.tags[i].changed {
+			if tg.tags[i].wValue != nil {
+				tg.tags[i].value = tg.tags[i].wValue
+				tg.tags[i].wValue = nil
+			}
+		}
 	}
 
 	return nil
