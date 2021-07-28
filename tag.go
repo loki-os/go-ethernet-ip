@@ -109,13 +109,13 @@ func (t *Tag) readParser(mr *packet.MessageRouterResponse) {
 func (t *Tag) Write() error {
 	t.Lock.Lock()
 	defer t.Lock.Unlock()
-	if t.wValue == nil {
-		t.wValue = t.value
+	if t.wValue != nil {
+		copy(t.wValue, t.value)
 	}
 	_, err := t.TCP.Send(multiple(t.writeRequest()))
 	if err == nil {
 		if t.wValue != nil {
-			t.value = t.wValue
+			copy(t.value, t.wValue)
 			t.wValue = nil
 		}
 	}
@@ -449,7 +449,7 @@ func (tg *TagGroup) Write() error {
 	for i := range tg.tags {
 		if tg.tags[i].changed {
 			if tg.tags[i].wValue != nil {
-				tg.tags[i].value = tg.tags[i].wValue
+				copy(tg.tags[i].value, tg.tags[i].wValue)
 				tg.tags[i].wValue = nil
 			}
 		}
