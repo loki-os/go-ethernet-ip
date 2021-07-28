@@ -71,7 +71,7 @@ func (t *Tag) Read() error {
 	mrres := new(packet.MessageRouterResponse)
 	mrres.Decode(res.Packet.Items[1].Data)
 
-	t.readParser(mrres)
+	t.readParser(mrres, nil)
 	return nil
 }
 
@@ -85,7 +85,7 @@ func (t *Tag) readRequest() *packet.MessageRouterRequest {
 	return mr
 }
 
-func (t *Tag) readParser(mr *packet.MessageRouterResponse) {
+func (t *Tag) readParser(mr *packet.MessageRouterResponse, cb func(func())) {
 	io := bufferx.New(mr.ResponseData)
 
 	_t := uint16(0)
@@ -101,7 +101,11 @@ func (t *Tag) readParser(mr *packet.MessageRouterResponse) {
 	if bytes.Compare(t.value, payload) != 0 {
 		t.value = payload
 		if t.Onchange != nil {
-			go t.Onchange()
+			if cb == nil {
+				go t.Onchange()
+			} else {
+				cb(t.Onchange)
+			}
 		}
 	}
 }
@@ -406,6 +410,7 @@ func (tg *TagGroup) Read() error {
 		io1.RL(&one)
 		offsets = append(offsets, one)
 	}
+	var cbs []func()
 	for i2 := range list {
 		mr := &packet.MessageRouterResponse{}
 		if (i2 + 1) != len(offsets) {
@@ -413,7 +418,12 @@ func (tg *TagGroup) Read() error {
 		} else {
 			mr.Decode(rmr.ResponseData[offsets[i2]:])
 		}
-		tg.tags[list[i2]].readParser(mr)
+		tg.tags[list[i2]].readParser(mr, func(f func()) {
+			cbs = append(cbs, f)
+		})
+	}
+	for i := range cbs {
+		cbs[i]()
 	}
 
 	return nil
