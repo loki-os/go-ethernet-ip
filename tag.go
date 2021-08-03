@@ -7,6 +7,7 @@ import (
 	"github.com/loki-os/go-ethernet-ip/messages/packet"
 	"github.com/loki-os/go-ethernet-ip/path"
 	"github.com/loki-os/go-ethernet-ip/types"
+	"sync"
 )
 
 const (
@@ -42,7 +43,8 @@ var TypeMap = map[types.UInt]string{
 }
 
 type Tag struct {
-	TCP *EIPTCP
+	Lock *sync.Mutex
+	TCP  *EIPTCP
 
 	instanceID types.UDInt
 	nameLen    types.UInt
@@ -59,6 +61,8 @@ type Tag struct {
 }
 
 func (t *Tag) Read() error {
+	t.Lock.Lock()
+	defer t.Lock.Unlock()
 	res, err := t.TCP.Send(t.readRequest())
 	if err != nil {
 		return err
@@ -107,19 +111,19 @@ func (t *Tag) readParser(mr *packet.MessageRouterResponse, cb func(func())) {
 }
 
 func (t *Tag) Write() error {
-	if t.changed {
-		_, err := t.TCP.Send(multiple(t.writeRequest()))
-		if err == nil {
+	t.Lock.Lock()
+	defer t.Lock.Unlock()
+	if t.wValue != nil {
+		copy(t.wValue, t.value)
+	}
+	_, err := t.TCP.Send(multiple(t.writeRequest()))
+	if err == nil {
+		if t.wValue != nil {
 			copy(t.value, t.wValue)
 			t.wValue = nil
-			if t.Onchange != nil {
-				t.Onchange()
-			}
 		}
-		t.changed = false
-		return err
 	}
-	return nil
+	return err
 }
 
 func (t *Tag) writeRequest() []*packet.MessageRouterRequest {
@@ -311,6 +315,7 @@ func (t *EIPTCP) allTags(tagMap map[string]*Tag, instanceID types.UDInt) (map[st
 	for io1.Len() > 0 {
 		tag := new(Tag)
 		tag.TCP = t
+		tag.Lock = new(sync.Mutex)
 
 		io1.RL(&tag.instanceID)
 		io1.RL(&tag.nameLen)
@@ -371,6 +376,8 @@ func (tg *TagGroup) Read() error {
 	var mrs []*packet.MessageRouterRequest
 
 	for i := range tg.tags {
+		tg.tags[i].Lock.Lock()
+		defer tg.tags[i].Lock.Unlock()
 		list = append(list, tg.tags[i].instanceID)
 		mrs = append(mrs, tg.tags[i].readRequest())
 	}
@@ -422,13 +429,11 @@ func (tg *TagGroup) Write() error {
 	var mrs []*packet.MessageRouterRequest
 
 	for i := range tg.tags {
+		tg.tags[i].Lock.Lock()
+		defer func() {
+			tg.tags[i].Lock.Unlock()
+		}()
 		if tg.tags[i].changed {
-			defer func() {
-				copy(tg.tags[i].value, tg.tags[i].wValue)
-				if tg.tags[i].Onchange != nil {
-					tg.tags[i].Onchange()
-				}
-			}()
 			list = append(list, tg.tags[i].instanceID)
 			mrs = append(mrs, tg.tags[i].writeRequest()...)
 			tg.tags[i].changed = false
@@ -442,6 +447,12 @@ func (tg *TagGroup) Write() error {
 	_, err := tg.Tcp.Send(multiple(mrs))
 	if err != nil {
 		return err
+	}
+	for i := range tg.tags {
+		if tg.tags[i].wValue != nil {
+			copy(tg.tags[i].value, tg.tags[i].wValue)
+			tg.tags[i].wValue = nil
+		}
 	}
 
 	return nil
