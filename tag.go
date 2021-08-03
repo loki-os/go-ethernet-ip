@@ -113,7 +113,7 @@ func (t *Tag) readParser(mr *packet.MessageRouterResponse, cb func(func())) {
 func (t *Tag) Write() error {
 	t.Lock.Lock()
 	defer t.Lock.Unlock()
-	if t.wValue != nil {
+	if t.wValue == nil {
 		copy(t.wValue, t.value)
 	}
 	_, err := t.TCP.Send(multiple(t.writeRequest()))
