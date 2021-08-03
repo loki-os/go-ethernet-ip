@@ -378,7 +378,7 @@ func (tg *TagGroup) Read() error {
 	for i := range tg.tags {
 		one := tg.tags[i]
 		one.Lock.Lock()
-		defer one.Unlock()
+		defer one.Lock.Unlock()
 		list = append(list, one.instanceID)
 		mrs = append(mrs, one.readRequest())
 	}
