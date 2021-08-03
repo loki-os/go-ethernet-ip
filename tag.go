@@ -114,7 +114,7 @@ func (t *Tag) Write() error {
 	t.Lock.Lock()
 	defer t.Lock.Unlock()
 	if t.wValue == nil {
-		copy(t.wValue, t.value)
+		return nil
 	}
 	_, err := t.TCP.Send(multiple(t.writeRequest()))
 	if err == nil {
