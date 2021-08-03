@@ -376,10 +376,11 @@ func (tg *TagGroup) Read() error {
 	var mrs []*packet.MessageRouterRequest
 
 	for i := range tg.tags {
-		tg.tags[i].Lock.Lock()
-		defer tg.tags[i].Lock.Unlock()
-		list = append(list, tg.tags[i].instanceID)
-		mrs = append(mrs, tg.tags[i].readRequest())
+		one := tg.tags[i]
+		one.Lock.Lock()
+		defer one.Unlock()
+		list = append(list, one.instanceID)
+		mrs = append(mrs, one.readRequest())
 	}
 
 	_sb := multiple(mrs)
@@ -429,14 +430,13 @@ func (tg *TagGroup) Write() error {
 	var mrs []*packet.MessageRouterRequest
 
 	for i := range tg.tags {
-		tg.tags[i].Lock.Lock()
-		defer func() {
-			tg.tags[i].Lock.Unlock()
-		}()
-		if tg.tags[i].changed {
-			list = append(list, tg.tags[i].instanceID)
-			mrs = append(mrs, tg.tags[i].writeRequest()...)
-			tg.tags[i].changed = false
+		one := tg.tags[i]
+		one.Lock.Lock()
+		defer one.Lock.Unlock()
+		if one.changed {
+			list = append(list, one.instanceID)
+			mrs = append(mrs, one.writeRequest()...)
+			one.changed = false
 		}
 	}
 
