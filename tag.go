@@ -227,6 +227,9 @@ func (t *Tag) String() string {
 	io := bufferx.New(t.value)
 	_len := types.UDInt(0)
 	io.RL(&_len)
+	if _len > 88 {
+		return ""
+	}
 	val := make([]byte, _len)
 	io.RL(&val)
 	return string(val)
