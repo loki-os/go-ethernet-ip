@@ -343,6 +343,7 @@ func (t *EIPTCP) allTags(tagMap map[string]*Tag, instanceID types.UDInt) (map[st
 type TagGroup struct {
 	tags map[types.UDInt]*Tag
 	Tcp  *EIPTCP
+	Lock sync.Mutex
 }
 
 func NewTagGroup() *TagGroup {
@@ -365,6 +366,8 @@ func (tg *TagGroup) Remove(tag *Tag) {
 }
 
 func (tg *TagGroup) Read() error {
+	tg.Lock.Lock()
+	defer tg.Lock.Unlock()
 	if len(tg.tags) == 0 {
 		return nil
 	}
@@ -429,6 +432,8 @@ func (tg *TagGroup) Read() error {
 }
 
 func (tg *TagGroup) Write() error {
+	tg.Lock.Lock()
+	defer tg.Lock.Unlock()
 	var list []types.UDInt
 	var mrs []*packet.MessageRouterRequest
 
