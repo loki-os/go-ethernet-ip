@@ -343,11 +343,11 @@ func (t *EIPTCP) allTags(tagMap map[string]*Tag, instanceID types.UDInt) (map[st
 type TagGroup struct {
 	tags map[types.UDInt]*Tag
 	Tcp  *EIPTCP
-	Lock sync.Mutex
+	Lock *sync.Mutex
 }
 
-func NewTagGroup() *TagGroup {
-	return &TagGroup{tags: make(map[types.UDInt]*Tag)}
+func NewTagGroup(lock *sync.Mutex) *TagGroup {
+	return &TagGroup{tags: make(map[types.UDInt]*Tag), Lock: lock}
 }
 
 func (tg *TagGroup) Add(tag *Tag) {
