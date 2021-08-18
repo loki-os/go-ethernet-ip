@@ -8,6 +8,7 @@ import (
 	"github.com/loki-os/go-ethernet-ip/path"
 	"github.com/loki-os/go-ethernet-ip/types"
 	"sync"
+	"unicode"
 )
 
 const (
@@ -232,6 +233,11 @@ func (t *Tag) String() string {
 	}
 	val := make([]byte, _len)
 	io.RL(&val)
+	for i := range val {
+		if !unicode.IsPrint(rune(val[i])) {
+			return "some rune cant print"
+		}
+	}
 	return string(val)
 }
 
