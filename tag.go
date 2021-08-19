@@ -264,8 +264,16 @@ func (t *Tag) XString() string {
 	io := bufferx.New(_value)
 	_len := types.UDInt(0)
 	io.RL(&_len)
+	if _len > 88 {
+		return ""
+	}
 	val := make([]byte, _len)
 	io.RL(&val)
+	for i := range val {
+		if !unicode.IsPrint(rune(val[i])) {
+			return "some rune cant print"
+		}
+	}
 	return string(val)
 }
 
