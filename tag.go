@@ -258,23 +258,24 @@ func (t *Tag) XString() string {
 	var _value []byte
 	if len(t.wValue) > 0 {
 		_value = t.wValue
+		return string(_value)
 	} else {
 		_value = t.value
-	}
-	io := bufferx.New(_value)
-	_len := types.UDInt(0)
-	io.RL(&_len)
-	if _len > 88 {
-		return ""
-	}
-	val := make([]byte, _len)
-	io.RL(&val)
-	for i := range val {
-		if !unicode.IsPrint(rune(val[i])) {
-			return "some rune cant print"
+		io := bufferx.New(_value)
+		_len := types.UDInt(0)
+		io.RL(&_len)
+		if _len > 88 {
+			return ""
 		}
+		val := make([]byte, _len)
+		io.RL(&val)
+		for i := range val {
+			if !unicode.IsPrint(rune(val[i])) {
+				return "some rune cant print"
+			}
+		}
+		return string(val)
 	}
-	return string(val)
 }
 
 func multiple(mrs []*packet.MessageRouterRequest) *packet.MessageRouterRequest {
