@@ -2,11 +2,13 @@ package go_ethernet_ip
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"github.com/loki-os/go-ethernet-ip/bufferx"
 	"github.com/loki-os/go-ethernet-ip/messages/packet"
 	"github.com/loki-os/go-ethernet-ip/path"
 	"github.com/loki-os/go-ethernet-ip/types"
+	"math"
 	"sync"
 	"unicode"
 )
@@ -217,11 +219,89 @@ func (t *Tag) count() types.UInt {
 	return a * b * c
 }
 
+func (t *Tag) GetValue() interface{} {
+	switch t.Type {
+	case BOOL:
+		return t.Bool()
+	case INT:
+		return t.UInt16()
+	case UINT:
+		return t.UInt16()
+	case UDINT:
+		return t.UInt32()
+	case DINT:
+		return t.Int32()
+	case LINT:
+		return t.Int64()
+	case ULINT:
+		return t.UInt64()
+	case REAL:
+		return t.Float32()
+	case LREAL:
+		return t.Float64()
+	case STRING:
+		return t.String()
+	}
+	return t.value
+}
+
+func (t *Tag) Bool() bool {
+	io := bufferx.New(t.value)
+	var val bool
+	io.RL(&val)
+	return val
+}
+
+func (t *Tag) Int16() int16 {
+	io := bufferx.New(t.value)
+	var val int16
+	io.RL(&val)
+	return val
+}
+
+func (t *Tag) UInt16() uint16 {
+	io := bufferx.New(t.value)
+	var val uint16
+	io.RL(&val)
+	return val
+}
+
 func (t *Tag) Int32() int32 {
 	io := bufferx.New(t.value)
 	var val int32
 	io.RL(&val)
 	return val
+}
+
+func (t *Tag) UInt32() uint32 {
+	io := bufferx.New(t.value)
+	var val uint32
+	io.RL(&val)
+	return val
+}
+
+func (t *Tag) Int64() int64 {
+	io := bufferx.New(t.value)
+	var val int64
+	io.RL(&val)
+	return val
+}
+
+func (t *Tag) UInt64() uint64 {
+	io := bufferx.New(t.value)
+	var val uint64
+	io.RL(&val)
+	return val
+}
+
+func (t *Tag) Float64() float64 {
+	bits := binary.LittleEndian.Uint64(t.value)
+	return math.Float64frombits(bits)
+}
+
+func (t *Tag) Float32() float32 {
+	bits := binary.LittleEndian.Uint32(t.value)
+	return math.Float32frombits(bits)
 }
 
 func (t *Tag) String() string {
