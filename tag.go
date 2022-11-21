@@ -3,12 +3,15 @@ package go_ethernet_ip
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"github.com/loki-os/go-ethernet-ip/bufferx"
 	"github.com/loki-os/go-ethernet-ip/messages/packet"
 	"github.com/loki-os/go-ethernet-ip/path"
 	"github.com/loki-os/go-ethernet-ip/types"
 	"math"
+	"strings"
 	"sync"
 	"unicode"
 )
