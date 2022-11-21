@@ -102,24 +102,10 @@ func (t *Tag) readParser(mr *packet.MessageRouterResponse, cb func(func())) {
 	if _t == 0x2a0 {
 		io.RL(&_t)
 	}
+
 	payload := make([]byte, io.Len())
 	io.RL(payload)
-	fmt.Println(payload)
-	if yes, bit := t.GetIntegerBit(); yes  {
-		sliceBitNum := int(math.Mod(float64(bit), 8))
-		byteNum := byte(math.Pow(2, float64(sliceBitNum)))
-		indexBitNum := int(math.Trunc(float64(bit) / 8))
-		fmt.Println(sliceBitNum)
-		fmt.Println(byteNum)
-		fmt.Println(indexBitNum)
-		for i, v := range payload { //this count be not a loop. you can refernece payload[indexBitNum] directly and make the assessment on the individual bit
-			if indexBitNum == i {
-				payload[i] = v & byteNum
-			} else {
-				payload[i] = 0x00
-			}
-		}
-	}
+
 	if bytes.Compare(t.value, payload) != 0 {
 		t.value = payload
 		if t.Onchange != nil {
