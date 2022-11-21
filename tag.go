@@ -415,7 +415,6 @@ func (t *EIPTCP) allTags(tagMap map[string]*Tag, instanceID types.UDInt) (map[st
 
 	mrres := new(packet.MessageRouterResponse)
 	mrres.Decode(res.Packet.Items[1].Data)
-	//fmt.Println(res.Packet.Items[1].Data)
 
 	io1 := bufferx.New(mrres.ResponseData)
 	for io1.Len() > 0 {
