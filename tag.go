@@ -560,3 +560,59 @@ func (tg *TagGroup) Write() error {
 
 	return nil
 }
+
+func (t *Tag) ReadTagByName() (error) {
+	t.Lock.Lock()
+	defer t.Lock.Unlock()
+	res, err := t.TCP.Send(t.readByName())
+	if err != nil {
+		return err
+	}
+
+	mrres := new(packet.MessageRouterResponse)
+	mrres.Decode(res.Packet.Items[1].Data)
+	io1 := bufferx.New(mrres.ResponseData)
+	io1.RL(&t.Type)
+	t.readParser(mrres,nil)
+
+	if (mrres.GeneralStatus == 0) {
+		return nil
+	} else {
+		errorByte := make([]byte , 1)
+		errorByte = append(errorByte, byte(mrres.GeneralStatus))
+		return errors.New("error code: " + hex.EncodeToString(errorByte))
+	}
+}
+
+func (tag *Tag) readByName() *packet.MessageRouterRequest {
+	var inPaths = strings.Split(string(tag.name), ".") //split tag name into array of segment names
+	var paths []byte //initialize the payload
+	for i:=0;i<len(inPaths); i++ { //loop through segment names and add paths
+		if i == 0 && tag.instanceID != 0 { 	//check if UDT root has a known instance ID.
+											//If it does than use that instead of the name of root
+			i++
+			paths = packet.Paths(paths, path.LogicalBuild(path.LogicalTypeClassID, 0x6B, true))
+			paths = packet.Paths(paths, path.LogicalBuild(path.LogicalTypeInstanceID,tag.instanceID,true))
+		}
+		paths = packet.Paths(paths, path.DataBuild(path.DataTypeANSI, []byte(inPaths[i]), true))
+	}
+
+	io := bufferx.New(nil)
+	io.WL(types.UInt(1)) //Read one element, TODO could parameterize in the future to read entire PLC tag array
+	mr := packet.NewMessageRouter(packet.ServiceReadTag, paths, io.Bytes())
+
+	return mr
+}
+
+func (t *EIPTCP) NewTag(name string, instID types.UDInt) Tag {
+	tag := new(Tag)
+	tag.Lock = new(sync.Mutex)
+	tag.TCP = t
+	nameBytes := []byte(name)
+	if nameBytes != nil {
+		tag.nameLen = types.UInt(len(nameBytes))
+		tag.name = nameBytes
+	}
+	tag.instanceID = instID
+	return tag
+}
