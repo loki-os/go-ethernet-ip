@@ -624,8 +624,7 @@ func (tag *Tag) readByName() *packet.MessageRouterRequest {
 	return mr
 }
 
-func (t *EIPTCP) NewTag(name string, instID types.UDInt) *Tag {
-	tag := new(Tag)
+func (t *EIPTCP) NewTag(name string, instID types.UDInt, tag *Tag)  {
 	tag.Lock = new(sync.Mutex)
 	tag.TCP = t
 	nameBytes := []byte(name)
@@ -634,5 +633,5 @@ func (t *EIPTCP) NewTag(name string, instID types.UDInt) *Tag {
 		tag.name = nameBytes
 	}
 	tag.instanceID = instID
-	return tag
+	return
 }
