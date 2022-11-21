@@ -30,6 +30,7 @@ const (
 	REAL   types.UInt = 0xca
 	LREAL  types.UInt = 0xcb
 	STRING types.UInt = 0xfce
+	STRING2 types.UInt = 0x8fce
 )
 
 var TypeMap = map[types.UInt]string{
@@ -46,6 +47,7 @@ var TypeMap = map[types.UInt]string{
 	REAL:   "REAL",
 	LREAL:  "LREAL",
 	STRING: "STRING",
+	STRING2: "STRING",
 }
 
 type Tag struct {
@@ -100,10 +102,24 @@ func (t *Tag) readParser(mr *packet.MessageRouterResponse, cb func(func())) {
 	if _t == 0x2a0 {
 		io.RL(&_t)
 	}
-
 	payload := make([]byte, io.Len())
 	io.RL(payload)
-
+	fmt.Println(payload)
+	if yes, bit := t.GetIntegerBit(); yes  {
+		sliceBitNum := int(math.Mod(float64(bit), 8))
+		byteNum := byte(math.Pow(2, float64(sliceBitNum)))
+		indexBitNum := int(math.Trunc(float64(bit) / 8))
+		fmt.Println(sliceBitNum)
+		fmt.Println(byteNum)
+		fmt.Println(indexBitNum)
+		for i, v := range payload { //this count be not a loop. you can refernece payload[indexBitNum] directly and make the assessment on the individual bit
+			if indexBitNum == i {
+				payload[i] = v & byteNum
+			} else {
+				payload[i] = 0x00
+			}
+		}
+	}
 	if bytes.Compare(t.value, payload) != 0 {
 		t.value = payload
 		if t.Onchange != nil {
@@ -243,6 +259,8 @@ func (t *Tag) GetValue() interface{} {
 	case LREAL:
 		return t.Float64()
 	case STRING:
+		return t.String()
+	case STRING2:
 		return t.String()
 	}
 	return t.value
@@ -411,6 +429,7 @@ func (t *EIPTCP) allTags(tagMap map[string]*Tag, instanceID types.UDInt) (map[st
 
 	mrres := new(packet.MessageRouterResponse)
 	mrres.Decode(res.Packet.Items[1].Data)
+	//fmt.Println(res.Packet.Items[1].Data)
 
 	io1 := bufferx.New(mrres.ResponseData)
 	for io1.Len() > 0 {
@@ -599,15 +618,27 @@ func (tag *Tag) readByName() *packet.MessageRouterRequest {
 		}
 		paths = packet.Paths(paths, path.DataBuild(path.DataTypeANSI, []byte(inPaths[i]), true))
 	}
+	/*
+		Example on what the loop is doing:
+
+		paths := packet.Paths(
+		path.LogicalBuild(path.LogicalTypeClassID, 0x6B, true), //Only needed for grabbing a tag via reference to instanceID
+		path.LogicalBuild(path.LogicalTypeInstanceID, 126, true), // we are grabbing tag by name, not instaance ID
+		//path.DataBuild(path.DataTypeANSI, []byte("<UDT instance name>"), true),
+		path.DataBuild(path.DataTypeANSI, []byte("<UDT member name level 1>"), true),
+		path.DataBuild(path.DataTypeANSI, []byte("<UDT member name level 2>"), true),
+	)*/
 
 	io := bufferx.New(nil)
 	io.WL(types.UInt(1)) //Read one element, TODO could parameterize in the future to read entire PLC tag array
+	fmt.Println("Payload:")
+	fmt.Println(paths)
 	mr := packet.NewMessageRouter(packet.ServiceReadTag, paths, io.Bytes())
 
 	return mr
 }
 
-func (t *EIPTCP) NewTag(name string, instID types.UDInt) Tag {
+func (t *EIPTCP) NewTag(name string, instID types.UDInt) *Tag {
 	tag := new(Tag)
 	tag.Lock = new(sync.Mutex)
 	tag.TCP = t
