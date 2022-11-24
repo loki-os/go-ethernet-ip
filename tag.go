@@ -634,3 +634,60 @@ func (t *EIPTCP) NewTag(name string, instID types.UDInt, tag *Tag)  {
 	tag.instanceID = instID
 	return
 }
+
+func (t *Tag) Write() error {
+	t.Lock.Lock()
+	defer t.Lock.Unlock()
+	if t.wValue == nil {
+		return nil
+	}
+	_, err := t.TCP.Send(multiple(t.writeRequest()))
+	if err == nil {
+		if t.wValue != nil {
+			copy(t.value, t.wValue)
+			t.wValue = nil
+		}
+	}
+	return err
+}
+
+func (t *Tag) writeRequest() []*packet.MessageRouterRequest {
+	var result []*packet.MessageRouterRequest
+	if 0x8000&t.Type == 0 {
+		io := bufferx.New(nil)
+		io.WL(t.Type)
+		io.WL(t.count())
+		io.WL(t.wValue)
+
+		mr := packet.NewMessageRouter(packet.ServiceWriteTag, packet.Paths(
+			path.LogicalBuild(path.LogicalTypeClassID, 0x6B, true),
+			path.LogicalBuild(path.LogicalTypeInstanceID, t.instanceID, true),
+		), io.Bytes())
+		result = append(result, mr)
+	} else {
+		// only string
+		io := bufferx.New(nil)
+		io.WL(DINT)
+		io.WL(types.UInt(1))
+		io.WL(types.UDInt(len(t.wValue)))
+		mr1 := packet.NewMessageRouter(packet.ServiceWriteTag, packet.Paths(
+			path.LogicalBuild(path.LogicalTypeClassID, 0x6B, true),
+			path.LogicalBuild(path.LogicalTypeInstanceID, t.instanceID, true),
+			path.DataBuild(path.DataTypeANSI, []byte("LEN"), true),
+		), io.Bytes())
+		result = append(result, mr1)
+
+		io1 := bufferx.New(nil)
+		io1.WL(SINT)
+		io1.WL(types.UInt(len(t.wValue)))
+		io1.WL(t.wValue)
+		mr2 := packet.NewMessageRouter(packet.ServiceWriteTag, packet.Paths(
+			path.LogicalBuild(path.LogicalTypeClassID, 0x6B, true),
+			path.LogicalBuild(path.LogicalTypeInstanceID, t.instanceID, true),
+			path.DataBuild(path.DataTypeANSI, []byte("DATA"), true),
+		), io1.Bytes())
+		result = append(result, mr2)
+	}
+
+	return result
+}
