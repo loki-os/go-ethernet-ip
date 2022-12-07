@@ -75,4 +75,39 @@ func Init(ip string) {
 	// if you need this future you need to fix it.
 	// actually, I don't have abplc device to test after business done.
 	conn.ForwardOpen()
+	var tag = new(Tag)
+	conn.InitializeTag("OP.UDT_Alarm.DINT_065_096", tag)
+	log.Println("Name: ", tag.Name())
+	log.Println(tag.GetValue())
+
+	tag = new(Tag)
+	conn.InitializeTag("wowtag", tag)
+	log.Println("Name: ", tag.Name())
+	log.Println(tag.GetValue())
+
+	tag = new(Tag)
+	conn.InitializeTag("wotag[0]", tag)
+	log.Println("Name: ", tag.Name())
+	log.Println(tag.GetValue())
+
+	tag = new(Tag)
+	conn.InitializeTag("wotag[1]", tag)
+	log.Println("Name: ", tag.Name())
+	log.Println(tag.GetValue())
+
+	tag = new(Tag)
+	conn.InitializeTag("OP_Format[0].REAL_Performance[0]", tag)
+	log.Println("Name: ", tag.Name())
+	//log.Println("Type: ", tag.Type)
+	log.Println(tag.GetValue())
+
+	tag = new(Tag)
+	conn.InitializeTag("wwwtag[1,0,1]", tag)
+	log.Println("Name: ", tag.Name())
+	log.Println(tag.GetValue())
+
+	tag = new(Tag)
+	conn.InitializeTag("stringtag", tag)
+	log.Println("Name: ", tag.Name())
+	log.Println(tag.GetValue())
 }
