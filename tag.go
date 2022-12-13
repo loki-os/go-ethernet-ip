@@ -293,8 +293,14 @@ func (t *Tag) count() types.UInt {
 
 func (t *Tag) GetValue() interface{} {
 	switch t.Type {
+	case NULL:
+		return nil
 	case BOOL:
 		return t.Bool()
+	case SINT:
+		return t.Int8()
+	case USINT:
+		return t.UInt8()
 	case INT:
 		return t.UInt16()
 	case UINT:
@@ -322,6 +328,20 @@ func (t *Tag) GetValue() interface{} {
 func (t *Tag) Bool() bool {
 	io := bufferx.New(t.value)
 	var val bool
+	io.RL(&val)
+	return val
+}
+
+func (t *Tag) Int8() int8 {
+	io := bufferx.New(t.value)
+	var val int8
+	io.RL(&val)
+	return val
+}
+
+func (t *Tag) UInt8() uint8 {
+	io := bufferx.New(t.value)
+	var val uint8
 	io.RL(&val)
 	return val
 }
