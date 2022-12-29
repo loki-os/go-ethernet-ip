@@ -22,5 +22,6 @@ const (
 	ServiceWriteTagFragmented       types.USInt = 0x53
 	ServiceReadModifyWriteTag       types.USInt = 0x4e
 	ServiceForwardOpen              types.USInt = 0x54
+	ServiceForwardOpenLarge         types.USInt = 0x5b
 	ServiceForwardClose             types.USInt = 0x4e
 )

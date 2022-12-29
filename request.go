@@ -175,13 +175,13 @@ func (t *EIPTCP) ForwardOpen() error {
 	// Originator Serial Number
 	io.WL(types.UDInt(0x1337))
 	// TimeOut Multiplier
-	io.WL(types.UDInt(3))
+	io.WL(types.UDInt(5))
 	// O->T RPI
-	io.WL(types.UDInt(8000))
+	io.WL(types.UDInt(1000000))
 	// O->T Network Connection Params
 	io.WL(types.UInt(0x43f4))
 	// T->O RPI
-	io.WL(types.UDInt(8000))
+	io.WL(types.UDInt(1000000))
 	// T->O Network Connection Params
 	io.WL(types.UInt(0x43f4))
 	// TransportClass_Trigger (Vol.1 - 3-4.4.3) -> Target is a Server, Application object of Transport Class 3.
@@ -196,6 +196,62 @@ func (t *EIPTCP) ForwardOpen() error {
 	io.WL(portPath)
 
 	mr := packet.NewMessageRouter(packet.ServiceForwardOpen, packet.Paths(
+		path.LogicalBuild(path.LogicalTypeClassID, 0x06, true),
+		path.LogicalBuild(path.LogicalTypeInstanceID, 0x01, true),
+	), io.Bytes())
+
+	sd, err := t.SendRRData(packet.NewUCMM(mr), 10)
+	if err != nil {
+		return err
+	}
+
+	rmr := &packet.MessageRouterResponse{}
+	rmr.Decode(sd.Packet.Items[1].Data)
+	io1 := bufferx.New(rmr.ResponseData)
+	io1.RL(&t.connID)
+	t.established = true
+
+	return nil
+}
+
+func (t *EIPTCP) ForwardOpenLarge() error {
+	io := bufferx.New(nil)
+	// TimePerTick
+	io.WL(types.USInt(3))
+	// Timeout Ticks
+	io.WL(types.USInt(125))
+	// O->T Connection ID
+	io.WL(types.UDInt(0))
+	// T->O Connection ID
+	io.WL(types.UDInt(rand.Intn(2147483647)))
+	// Connection Serial Number
+	io.WL(types.UInt(rand.Intn(32767)))
+	// Originator VendorID
+	io.WL(types.UInt(0x3333))
+	// Originator Serial Number
+	io.WL(types.UDInt(0x1337))
+	// TimeOut Multiplier
+	io.WL(types.UDInt(5))
+	// O->T RPI
+	io.WL(types.UDInt(1000000))
+	// O->T Network Connection Params
+	io.WL(types.UDInt(0x42000FA2))
+	// T->O RPI
+	io.WL(types.UDInt(1000000))
+	// T->O Network Connection Params
+	io.WL(types.UDInt(0x42000FA2))
+	// TransportClass_Trigger (Vol.1 - 3-4.4.3) -> Target is a Server, Application object of Transport Class 3.
+	io.WL(types.USInt(0xA3))
+
+	portPath := packet.Paths(
+		path.PortBuild([]byte{t.config.Slot}, 1, true),
+		path.LogicalBuild(path.LogicalTypeClassID, 0x02, true),
+		path.LogicalBuild(path.LogicalTypeInstanceID, 0x01, true),
+	)
+	io.WL(utils.Len(portPath))
+	io.WL(portPath)
+
+	mr := packet.NewMessageRouter(packet.ServiceForwardOpenLarge, packet.Paths(
 		path.LogicalBuild(path.LogicalTypeClassID, 0x06, true),
 		path.LogicalBuild(path.LogicalTypeInstanceID, 0x01, true),
 	), io.Bytes())

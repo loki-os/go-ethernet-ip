@@ -3,12 +3,16 @@ package go_ethernet_ip
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"github.com/loki-os/go-ethernet-ip/bufferx"
 	"github.com/loki-os/go-ethernet-ip/messages/packet"
 	"github.com/loki-os/go-ethernet-ip/path"
 	"github.com/loki-os/go-ethernet-ip/types"
 	"math"
+	"strconv"
+	"strings"
 	"sync"
 	"unicode"
 )
@@ -27,6 +31,7 @@ const (
 	REAL   types.UInt = 0xca
 	LREAL  types.UInt = 0xcb
 	STRING types.UInt = 0xfce
+	STRING2 types.UInt = 0x8fce
 )
 
 var TypeMap = map[types.UInt]string{
@@ -43,6 +48,7 @@ var TypeMap = map[types.UInt]string{
 	REAL:   "REAL",
 	LREAL:  "LREAL",
 	STRING: "STRING",
+	STRING2: "STRING",
 }
 
 type Tag struct {
@@ -79,28 +85,93 @@ func (t *Tag) Read() error {
 }
 
 func (t *Tag) readRequest() *packet.MessageRouterRequest {
+	//create new io buffer for request data
 	io := bufferx.New(nil)
-	io.WL(t.count())
-	mr := packet.NewMessageRouter(packet.ServiceReadTag, packet.Paths(
-		path.LogicalBuild(path.LogicalTypeClassID, 0x6B, true),
-		path.LogicalBuild(path.LogicalTypeInstanceID, t.instanceID, true),
-	), io.Bytes())
-	return mr
+
+	//Define number of elements to read
+	if length := t.count(); length > 0{
+		io.WL(length) //Read all indices of tag
+	} else {
+		io.WL(types.UInt(1)) //read a single element if t.dimXlen are not defined
+	}
+	//split tag name into array of segment names and check if 'ANSI Extended Symbolic Segments' need to be used
+	if inPaths := strings.Split(string(t.name), "."); t.instanceID > 0 && len(inPaths) < 2 {
+		//Only logical segments need to be used.
+		mr := packet.NewMessageRouter(packet.ServiceReadTag, packet.Paths(
+			path.LogicalBuild(path.LogicalTypeClassID, 0x6B, true),
+			path.LogicalBuild(path.LogicalTypeInstanceID, t.instanceID, true),
+		), io.Bytes())
+		return mr
+	} else {
+		 //'ANSI Extended Symbolic Segments' need to be used
+		var paths []byte //initialize the 'Request Path'
+		var iinit int //initialize the initial i for the 'Request Path' loop
+		if t.instanceID == 0 { //check if first segment can be replaced by logical segments
+			iinit = 0 //first segment is not able to be logical
+		} else {
+			iinit = 1//first segment is able to be logical. Create first segments
+			paths = packet.Paths(paths, path.LogicalBuild(path.LogicalTypeClassID, 0x6B, true))
+			paths = packet.Paths(paths, path.LogicalBuild(path.LogicalTypeInstanceID,t.instanceID,true))
+		}
+		//Request Path loop:
+		for i:=iinit;i<len(inPaths); i++ { //loop through parts of tag name and add ANSI Ext. Segments to paths for each one.
+			startSquareBrackIndex := len(inPaths[i])
+			var eleIds []string
+			if strings.HasSuffix(inPaths[i],"]"){
+				startSquareBrackIndex = strings.Index(inPaths[i],"[")
+				eleIdsStr := inPaths[i][startSquareBrackIndex+1:len(inPaths[i])-1]
+				eleIds = strings.Split(eleIdsStr,",")
+			}
+			paths = packet.Paths(paths, path.DataBuild(path.DataTypeANSI, []byte(inPaths[i][:startSquareBrackIndex]), true))
+			for _/*i*/, v := range eleIds {
+				id, _ := strconv.Atoi(v)
+				paths = packet.Paths(paths, path.LogicalBuild(path.LogicalTypeMemberID, types.UDInt(id), true))
+			}
+		}
+		/*
+			Example on what this is doing:
+
+			paths := packet.Paths(
+			path.LogicalBuild(path.LogicalTypeClassID, 0x6B, true), //Only needed for grabbing a tag via reference to instanceID
+			path.LogicalBuild(path.LogicalTypeInstanceID, 123, true), // we are grabbing tag by name, not instaance ID
+			//path.DataBuild(path.DataTypeANSI, []byte("<UDT instance name>"), true),
+			path.DataBuild(path.DataTypeANSI, []byte("<UDT member name level 1>"), true),
+			path.DataBuild(path.DataTypeANSI, []byte("<UDT member name level 2>"), true),
+		)*/
+
+		mr := packet.NewMessageRouter(packet.ServiceReadTag, paths, io.Bytes())
+		return mr
+	}
 }
 
-func (t *Tag) readParser(mr *packet.MessageRouterResponse, cb func(func())) {
-	io := bufferx.New(mr.ResponseData)
-
-	_t := uint16(0)
-	io.RL(&_t)
-
-	if _t == 0x2a0 {
-		io.RL(&_t)
+func (t *Tag) readParser(mr *packet.MessageRouterResponse, cb func(func())) error {
+	if mr.GeneralStatus > 0 {
+		errorByte := make([]byte , 1)
+		errorByte = append(errorByte, byte(mr.GeneralStatus))
+		return errors.New("error code: " + hex.EncodeToString(errorByte))
 	}
 
+	io := bufferx.New(mr.ResponseData)
+
+	//Read the tag type
+	ttype := types.UInt(0)
+	io.RL(&ttype)
+
+	//If the tag type is actually a structure handle then read it.
+	if ttype == 0x2a0 { //per the documentation 0x2a0 means tag is not atomic!
+		io.RL(&ttype)
+	}
+
+	//If the tag type is not defined, define it.
+	if t.Type == 0 {
+		t.Type = ttype
+	}
+
+	//Read the tag value
 	payload := make([]byte, io.Len())
 	io.RL(payload)
 
+	//if the tag value changed, call the OnChange callback
 	if bytes.Compare(t.value, payload) != 0 {
 		t.value = payload
 		if t.Onchange != nil {
@@ -111,6 +182,7 @@ func (t *Tag) readParser(mr *packet.MessageRouterResponse, cb func(func())) {
 			}
 		}
 	}
+	return nil
 }
 
 func (t *Tag) Write() error {
@@ -221,8 +293,14 @@ func (t *Tag) count() types.UInt {
 
 func (t *Tag) GetValue() interface{} {
 	switch t.Type {
+	case NULL:
+		return nil
 	case BOOL:
 		return t.Bool()
+	case SINT:
+		return t.Int8()
+	case USINT:
+		return t.UInt8()
 	case INT:
 		return t.UInt16()
 	case UINT:
@@ -241,6 +319,8 @@ func (t *Tag) GetValue() interface{} {
 		return t.Float64()
 	case STRING:
 		return t.String()
+	case STRING2:
+		return t.String()
 	}
 	return t.value
 }
@@ -248,6 +328,20 @@ func (t *Tag) GetValue() interface{} {
 func (t *Tag) Bool() bool {
 	io := bufferx.New(t.value)
 	var val bool
+	io.RL(&val)
+	return val
+}
+
+func (t *Tag) Int8() int8 {
+	io := bufferx.New(t.value)
+	var val int8
+	io.RL(&val)
+	return val
+}
+
+func (t *Tag) UInt8() uint8 {
+	io := bufferx.New(t.value)
+	var val uint8
 	io.RL(&val)
 	return val
 }
@@ -396,8 +490,8 @@ func (t *EIPTCP) allTags(tagMap map[string]*Tag, instanceID types.UDInt) (map[st
 	io := bufferx.New(nil)
 	io.WL(types.UInt(3))
 	io.WL(types.UInt(1))
-	io.WL(types.UInt(2))
-	io.WL(types.UInt(8))
+	io.WL(types.UInt(2)) //type
+	io.WL(types.UInt(8)) //dims
 
 	mr := packet.NewMessageRouter(packet.ServiceGetInstanceAttributeList, paths, io.Bytes())
 
@@ -559,4 +653,17 @@ func (tg *TagGroup) Write() error {
 	}
 
 	return nil
+}
+
+func (t *EIPTCP) InitializeTag(name string, tag *Tag)  {
+	tag.Lock = new(sync.Mutex)
+	tag.TCP = t
+	nameBytes := []byte(name)
+	if nameBytes != nil {
+		tag.nameLen = types.UInt(len(nameBytes))
+		tag.name = nameBytes
+	}
+	tag.instanceID = 0
+	tag.Read()
+	return
 }
